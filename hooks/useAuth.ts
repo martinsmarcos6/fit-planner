@@ -1,9 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/utils/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 
 interface User {
   id: string;
   email: string;
+  username: string;
   name: string;
 }
 
@@ -24,19 +26,60 @@ export const useAuth = () => {
     isAuthenticated: false,
   });
 
-  // Carregar dados de autenticação do cache na inicialização
+  // Converter usuário do Supabase para nosso formato
+  const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'usuario',
+    name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário',
+  });
+
+  // Carregar dados de autenticação do Supabase na inicialização
   useEffect(() => {
-    loadAuthFromStorage();
+    loadAuthFromSupabase();
+    
+    // Escutar mudanças na autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (session?.user) {
+          const user = mapSupabaseUser(session.user);
+          setAuthState({
+            user,
+            token: session.access_token,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+        } else {
+          setAuthState({
+            user: null,
+            token: null,
+            isLoading: false,
+            isAuthenticated: false,
+          });
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const loadAuthFromStorage = async () => {
+  const loadAuthFromSupabase = async () => {
     try {
-      const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-      if (storedAuth) {
-        const { user, token } = JSON.parse(storedAuth);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Erro ao carregar sessão:', error);
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      if (session?.user) {
+        const user = mapSupabaseUser(session.user);
         setAuthState({
           user,
-          token,
+          token: session.access_token,
           isLoading: false,
           isAuthenticated: true,
         });
@@ -44,7 +87,7 @@ export const useAuth = () => {
         setAuthState(prev => ({ ...prev, isLoading: false }));
       }
     } catch (error) {
-      console.error('Erro ao carregar autenticação do cache:', error);
+      console.error('Erro ao carregar autenticação:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
     }
   };
@@ -53,32 +96,29 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
 
-      // Simulação de login - em um app real, aqui seria uma chamada para API
-      // Por enquanto, vamos simular um login bem-sucedido
-      const mockUser: User = {
-        id: '1',
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: email.split('@')[0], // Usa a parte antes do @ como nome
-      };
-      
-      const mockToken = `mock_token_${Date.now()}`;
-
-      const authData = {
-        user: mockUser,
-        token: mockToken,
-      };
-
-      // Salvar no cache
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-
-      setAuthState({
-        user: mockUser,
-        token: mockToken,
-        isLoading: false,
-        isAuthenticated: true,
+        password,
       });
 
-      return { success: true };
+      if (error) {
+        console.error('Erro no login:', error);
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        const user = mapSupabaseUser(data.user);
+        setAuthState({
+          user,
+          token: data.session?.access_token || null,
+          isLoading: false,
+          isAuthenticated: true,
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: 'Erro desconhecido no login' };
     } catch (error) {
       console.error('Erro no login:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -86,35 +126,39 @@ export const useAuth = () => {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
+  const register = useCallback(async (email: string, password: string, name: string, username?: string) => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
 
-      // Simulação de registro - em um app real, aqui seria uma chamada para API
-      const mockUser: User = {
-        id: Date.now().toString(),
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name,
-      };
-      
-      const mockToken = `mock_token_${Date.now()}`;
-
-      const authData = {
-        user: mockUser,
-        token: mockToken,
-      };
-
-      // Salvar no cache
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-
-      setAuthState({
-        user: mockUser,
-        token: mockToken,
-        isLoading: false,
-        isAuthenticated: true,
+        password,
+        options: {
+          data: {
+            name: name,
+            username: username,
+          },
+        },
       });
 
-      return { success: true };
+      if (error) {
+        console.error('Erro no registro:', error);
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        const user = mapSupabaseUser(data.user);
+        setAuthState({
+          user,
+          token: data.session?.access_token || null,
+          isLoading: false,
+          isAuthenticated: true,
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: 'Erro desconhecido no registro' };
     } catch (error) {
       console.error('Erro no registro:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -124,8 +168,13 @@ export const useAuth = () => {
 
   const logout = useCallback(async () => {
     try {
-      // Remover do cache
-      await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+      setAuthState(prev => ({ ...prev, isLoading: true }));
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Erro no logout:', error);
+      }
       
       setAuthState({
         user: null,
@@ -135,40 +184,59 @@ export const useAuth = () => {
       });
     } catch (error) {
       console.error('Erro no logout:', error);
+      setAuthState(prev => ({ ...prev, isLoading: false }));
     }
   }, []);
 
-  const updateUser = useCallback(async (userData: { name: string; email: string }) => {
+  const updateUser = useCallback(async (userData: { name: string; email: string; username?: string }) => {
     try {
       if (!authState.user) {
         throw new Error('Usuário não autenticado');
       }
 
-      const updatedUser = {
-        ...authState.user,
-        name: userData.name,
+      const { data, error } = await supabase.auth.updateUser({
         email: userData.email,
-      };
+        data: {
+          name: userData.name,
+          username: userData.username,
+        },
+      });
 
-      const authData = {
-        user: updatedUser,
-        token: authState.token,
-      };
+      if (error) {
+        throw new Error(error.message);
+      }
 
-      // Salvar no cache
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-      }));
+      if (data.user) {
+        const updatedUser = mapSupabaseUser(data.user);
+        setAuthState(prev => ({
+          ...prev,
+          user: updatedUser,
+        }));
+      }
 
       return { success: true };
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
       throw error;
     }
-  }, [authState.user, authState.token]);
+  }, [authState.user]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'fit-planner://reset-password',
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erro ao resetar senha:', error);
+      return { success: false, error: 'Erro ao resetar senha' };
+    }
+  }, []);
 
   return {
     ...authState,
@@ -176,5 +244,6 @@ export const useAuth = () => {
     register,
     logout,
     updateUser,
+    resetPassword,
   };
 }; 

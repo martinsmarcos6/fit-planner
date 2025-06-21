@@ -5,23 +5,53 @@ import { FormControl, FormControlLabel } from '@/components/ui/form-control'
 import { HStack } from '@/components/ui/hstack'
 import { Input, InputField } from '@/components/ui/input'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { profileHelpers } from '@/utils/supabase-helpers'
 import { Link, router } from 'expo-router'
-import { Check } from 'lucide-react-native'
-import { useState } from 'react'
+import { Check, X } from 'lucide-react-native'
+import { useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const RegisterPage = () => {
   const { register, isLoading } = useAuthContext();
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
+
+  // Verificar disponibilidade do username em tempo real
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (username.length < 3) {
+        setUsernameStatus('idle');
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        setUsernameStatus('unavailable');
+        return;
+      }
+
+      setUsernameStatus('checking');
+      
+      try {
+        const isAvailable = await profileHelpers.isUsernameAvailable(username);
+        setUsernameStatus(isAvailable ? 'available' : 'unavailable');
+      } catch (error) {
+        setUsernameStatus('unavailable');
+      }
+    };
+
+    const timeoutId = setTimeout(checkUsername, 500); // Debounce de 500ms
+    return () => clearTimeout(timeoutId);
+  }, [username]);
 
   const handleRegister = async () => {
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !username || !email || !password || !confirmPassword) {
       setError('Por favor, preencha todos os campos');
       return;
     }
@@ -36,13 +66,68 @@ const RegisterPage = () => {
       return;
     }
 
+    // Validar formato do username
+    if (username.length < 3) {
+      setError('O username deve ter pelo menos 3 caracteres');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setError('O username deve conter apenas letras, números e underscore');
+      return;
+    }
+
+    if (usernameStatus !== 'available') {
+      setError('Username não está disponível');
+      return;
+    }
+
     setError('');
-    const result = await register(email, password, name);
+    const result = await register(email, password, name, username);
     
     if (result.success) {
       router.replace('/(app)/profile');
     } else {
       setError(result.error || 'Erro no registro');
+    }
+  };
+
+  const getUsernameStatusText = () => {
+    switch (usernameStatus) {
+      case 'checking':
+        return 'Verificando disponibilidade...';
+      case 'available':
+        return 'Username disponível';
+      case 'unavailable':
+        return 'Username não disponível';
+      default:
+        return 'Apenas letras, números e underscore. Mínimo 3 caracteres.';
+    }
+  };
+
+  const getUsernameStatusColor = () => {
+    switch (usernameStatus) {
+      case 'checking':
+        return 'text-typography-600';
+      case 'available':
+        return 'text-green-600';
+      case 'unavailable':
+        return 'text-red-600';
+      default:
+        return 'text-typography-600';
+    }
+  };
+
+  const getUsernameStatusIcon = () => {
+    switch (usernameStatus) {
+      case 'checking':
+        return null;
+      case 'available':
+        return <Check size={16} color="#16a34a" />;
+      case 'unavailable':
+        return <X size={16} color="#dc2626" />;
+      default:
+        return null;
     }
   };
 
@@ -65,6 +150,27 @@ const RegisterPage = () => {
                 onChangeText={setName}
               />
             </Input>
+          </FormControl>
+
+          <FormControl>
+            <FormControlLabel>
+              <Text>Username</Text>
+            </FormControlLabel>
+            <Input>
+              <InputField 
+                placeholder='Digite seu username' 
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize='none'
+                autoCorrect={false}
+              />
+            </Input>
+            <View className='flex-row items-center gap-2 mt-1'>
+              {getUsernameStatusIcon()}
+              <Text className={`text-xs ${getUsernameStatusColor()}`}>
+                {getUsernameStatusText()}
+              </Text>
+            </View>
           </FormControl>
 
           <FormControl>
@@ -131,7 +237,7 @@ const RegisterPage = () => {
           <Button 
             className="bg-primary-500"
             onPress={handleRegister}
-            disabled={isLoading}
+            disabled={isLoading || usernameStatus !== 'available'}
           >
             <ButtonText className="text-white">
               {isLoading ? 'Criando conta...' : 'Criar conta'}

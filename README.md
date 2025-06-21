@@ -1,50 +1,212 @@
-# Welcome to your Expo app 👋
+# Fit Planner
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Um app de planejamento de treinos desenvolvido com React Native, Expo e Supabase.
 
-## Get started
+## 🚀 Funcionalidades
 
-1. Install dependencies
+- ✅ Autenticação de usuários com Supabase
+- ✅ Registro e login com email/senha
+- ✅ Reset de senha via email
+- ✅ Username único por usuário
+- ✅ Proteção de rotas autenticadas
+- ✅ Gerenciamento de treinos
+- ✅ Perfil de usuário
+- ✅ Sincronização em tempo real
+- ✅ Row Level Security (RLS)
 
-   ```bash
-   npm install
-   ```
+## 🛠️ Tecnologias
 
-2. Start the app
+- **Frontend**: React Native, Expo, TypeScript
+- **UI**: Gluestack UI, NativeWind (Tailwind CSS)
+- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
+- **Navegação**: Expo Router
+- **Estado**: React Context + Hooks
 
-   ```bash
-   npx expo start
-   ```
+## 📱 Screenshots
 
-In the output, you'll find options to open the app in a
+_Screenshots serão adicionados aqui_
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🚀 Como Executar
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Pré-requisitos
 
-## Get a fresh project
+- Node.js 18+
+- pnpm
+- Expo CLI
+- Conta no Supabase
 
-When you're ready, run:
+### 1. Instalar Dependências
 
 ```bash
-npm run reset-project
+pnpm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Configurar Supabase
 
-## Learn more
+1. Siga o guia em [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+2. Crie um arquivo `.env` com suas credenciais:
 
-To learn more about developing your project with Expo, look at the following resources:
+```env
+EXPO_PUBLIC_SUPABASE_URL=sua_url_do_supabase
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 3. Executar o App
 
-## Join the community
+```bash
+# Desenvolvimento
+pnpm start
 
-Join our community of developers creating universal apps.
+# Android
+pnpm android
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# iOS
+pnpm ios
+
+# Web
+pnpm web
+```
+
+## 📁 Estrutura do Projeto
+
+```
+fit-planner/
+├── app/                    # Rotas (Expo Router)
+│   ├── (app)/             # Rotas autenticadas
+│   ├── login.tsx          # Página de login
+│   └── register.tsx       # Página de registro
+├── components/            # Componentes reutilizáveis
+│   ├── ui/               # Componentes de UI
+│   └── AuthGuard.tsx     # Proteção de rotas
+├── contexts/             # Contextos React
+│   └── AuthContext.tsx   # Contexto de autenticação
+├── hooks/                # Hooks personalizados
+│   └── useAuth.ts        # Hook de autenticação
+├── utils/                # Utilitários
+│   ├── supabase.ts       # Cliente Supabase
+│   └── supabase-helpers.ts # Helpers para Supabase
+├── examples/             # Exemplos de uso
+└── docs/                 # Documentação
+```
+
+## 🔐 Autenticação
+
+O app usa Supabase para autenticação com as seguintes funcionalidades:
+
+- Login/Registro com email e senha
+- Username único por usuário
+- Reset de senha
+- Sessões persistentes
+- Proteção de rotas
+- Row Level Security
+
+### Como Usar
+
+```typescript
+import { useAuthContext } from "@/contexts/AuthContext";
+
+function MeuComponente() {
+  const { user, login, logout, isAuthenticated } = useAuthContext();
+
+  const handleLogin = async () => {
+    const result = await login("email@exemplo.com", "senha123");
+    if (result.success) {
+      console.log("Login realizado!");
+    }
+  };
+
+  const handleRegister = async () => {
+    const result = await register(
+      "email@exemplo.com",
+      "senha123",
+      "Nome do Usuário",
+      "username_unico" // opcional
+    );
+  };
+}
+```
+
+### Trabalhar com Usernames
+
+```typescript
+import { profileHelpers } from "@/utils/supabase-helpers";
+
+// Verificar disponibilidade
+const isAvailable = await profileHelpers.isUsernameAvailable("meu_username");
+
+// Buscar perfil por username
+const profile = await profileHelpers.getProfileByUsername("usuario123");
+
+// Gerar username único
+const uniqueUsername = await profileHelpers.generateUniqueUsername("usuario");
+```
+
+## 🗄️ Banco de Dados
+
+### Tabelas Principais
+
+- **profiles**: Perfis dos usuários (id, email, username, name)
+- **workouts**: Treinos dos usuários
+
+### Helpers Disponíveis
+
+```typescript
+import { workoutHelpers, profileHelpers } from "@/utils/supabase-helpers";
+
+// Buscar treinos do usuário
+const workouts = await workoutHelpers.getUserWorkouts();
+
+// Criar novo treino
+const newWorkout = await workoutHelpers.createWorkout({
+  name: "Treino A",
+  description: "Descrição do treino",
+});
+
+// Verificar username
+const isAvailable = await profileHelpers.isUsernameAvailable("username");
+```
+
+## 🎨 UI/UX
+
+- Design system com Gluestack UI
+- Tema escuro/claro
+- Componentes acessíveis
+- Animações suaves
+
+## 📚 Documentação
+
+- [Configuração do Supabase](./SUPABASE_SETUP.md)
+- [Sistema de Autenticação](./AUTH_README.md)
+- [Funcionalidades de Treino](./WORKOUT_FEATURE.md)
+- [Paleta de Cores](./COLORS.md)
+
+## 🤝 Contribuindo
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## 🆘 Suporte
+
+Se você encontrar algum problema ou tiver dúvidas:
+
+1. Verifique a [documentação](./docs/)
+2. Consulte os [issues](../../issues)
+3. Abra um novo issue com detalhes do problema
+
+## 🚀 Próximas Funcionalidades
+
+- [ ] Autenticação com Google/Apple
+- [ ] Upload de imagens
+- [ ] Notificações push
+- [ ] Modo offline
+- [ ] Exportar treinos
+- [ ] Compartilhar treinos
+- [ ] Estatísticas de treino
+- [ ] Integração com wearables

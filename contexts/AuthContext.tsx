@@ -5,15 +5,17 @@ interface AuthContextType {
   user: {
     id: string;
     email: string;
+    username: string;
     name: string;
   } | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, name: string, username?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  updateUser: (userData: { name: string; email: string }) => Promise<{ success: boolean }>;
+  updateUser: (userData: { name: string; email: string; username?: string }) => Promise<{ success: boolean }>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
