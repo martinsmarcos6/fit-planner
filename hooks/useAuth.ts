@@ -138,10 +138,43 @@ export const useAuth = () => {
     }
   }, []);
 
+  const updateUser = useCallback(async (userData: { name: string; email: string }) => {
+    try {
+      if (!authState.user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const updatedUser = {
+        ...authState.user,
+        name: userData.name,
+        email: userData.email,
+      };
+
+      const authData = {
+        user: updatedUser,
+        token: authState.token,
+      };
+
+      // Salvar no cache
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+
+      setAuthState(prev => ({
+        ...prev,
+        user: updatedUser,
+      }));
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      throw error;
+    }
+  }, [authState.user, authState.token]);
+
   return {
     ...authState,
     login,
     register,
     logout,
+    updateUser,
   };
 }; 
