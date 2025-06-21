@@ -3,11 +3,34 @@ import { Button, ButtonText } from '@/components/ui/button'
 import { FormControl, FormControlLabel } from '@/components/ui/form-control'
 import { HStack } from '@/components/ui/hstack'
 import { Input, InputField } from '@/components/ui/input'
-import { Link } from 'expo-router'
+import { useAuthContext } from '@/contexts/AuthContext'
+import { Link, router } from 'expo-router'
+import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const LoginPage = () => {
+  const { login, isLoading } = useAuthContext();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Por favor, preencha todos os campos');
+      return;
+    }
+
+    setError('');
+    const result = await login(email, password);
+    
+    if (result.success) {
+      router.replace('/(app)/profile');
+    } else {
+      setError(result.error || 'Erro no login');
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, padding: 20 }}>
@@ -17,7 +40,13 @@ const LoginPage = () => {
               <Text>Email</Text>
             </FormControlLabel>
             <Input>
-              <InputField placeholder='Digite seu email' />
+              <InputField 
+                placeholder='Digite seu email' 
+                value={email}
+                onChangeText={setEmail}
+                keyboardType='email-address'
+                autoCapitalize='none'
+              />
             </Input>
           </FormControl>
           <FormControl>
@@ -25,11 +54,27 @@ const LoginPage = () => {
               <Text>Senha</Text>
             </FormControlLabel>
             <Input>
-              <InputField placeholder='Digite sua senha' />
+              <InputField 
+                placeholder='Digite sua senha' 
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
             </Input>
           </FormControl>
-          <Button className="bg-primary-500">
-            <ButtonText className="text-white">Entrar</ButtonText>
+
+          {error ? (
+            <Text className='text-red-500 text-center'>{error}</Text>
+          ) : null}
+
+          <Button 
+            className="bg-primary-500" 
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <ButtonText className="text-white">
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </ButtonText>
           </Button>
 
           <Text className='text-center text-typography-600'>Esqueceu a senha?</Text>

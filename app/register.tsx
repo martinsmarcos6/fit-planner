@@ -4,12 +4,48 @@ import { Checkbox, CheckboxIcon, CheckboxIndicator, CheckboxLabel } from '@/comp
 import { FormControl, FormControlLabel } from '@/components/ui/form-control'
 import { HStack } from '@/components/ui/hstack'
 import { Input, InputField } from '@/components/ui/input'
-import { Link } from 'expo-router'
+import { useAuthContext } from '@/contexts/AuthContext'
+import { Link, router } from 'expo-router'
 import { Check } from 'lucide-react-native'
+import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const RegisterPage = () => {
+  const { register, isLoading } = useAuthContext();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleRegister = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      setError('Por favor, preencha todos os campos');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem');
+      return;
+    }
+
+    if (!acceptTerms) {
+      setError('Você deve aceitar os termos de serviço');
+      return;
+    }
+
+    setError('');
+    const result = await register(email, password, name);
+    
+    if (result.success) {
+      router.replace('/(app)/profile');
+    } else {
+      setError(result.error || 'Erro no registro');
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, padding: 20 }}>
@@ -23,7 +59,11 @@ const RegisterPage = () => {
               <Text>Nome completo</Text>
             </FormControlLabel>
             <Input>
-              <InputField placeholder='Digite seu nome completo' />
+              <InputField 
+                placeholder='Digite seu nome completo' 
+                value={name}
+                onChangeText={setName}
+              />
             </Input>
           </FormControl>
 
@@ -32,7 +72,13 @@ const RegisterPage = () => {
               <Text>Email</Text>
             </FormControlLabel>
             <Input>
-              <InputField placeholder='Digite seu email' />
+              <InputField 
+                placeholder='Digite seu email' 
+                value={email}
+                onChangeText={setEmail}
+                keyboardType='email-address'
+                autoCapitalize='none'
+              />
             </Input>
           </FormControl>
 
@@ -41,7 +87,12 @@ const RegisterPage = () => {
               <Text>Senha</Text>
             </FormControlLabel>
             <Input>
-              <InputField placeholder='Digite sua senha' secureTextEntry />
+              <InputField 
+                placeholder='Digite sua senha' 
+                secureTextEntry 
+                value={password}
+                onChangeText={setPassword}
+              />
             </Input>
           </FormControl>
 
@@ -50,11 +101,21 @@ const RegisterPage = () => {
               <Text>Confirmar senha</Text>
             </FormControlLabel>
             <Input>
-              <InputField placeholder='Confirme sua senha' secureTextEntry />
+              <InputField 
+                placeholder='Confirme sua senha' 
+                secureTextEntry 
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
             </Input>
           </FormControl>
 
-          <Checkbox value='terms' size='md'>
+          <Checkbox 
+            value='terms' 
+            size='md'
+            isChecked={acceptTerms}
+            onChange={setAcceptTerms}
+          >
             <CheckboxIndicator>
               <CheckboxIcon as={Check} />
             </CheckboxIndicator>
@@ -63,8 +124,18 @@ const RegisterPage = () => {
             </CheckboxLabel>
           </Checkbox>
 
-          <Button className="bg-primary-500">
-            <ButtonText className="text-white">Criar conta</ButtonText>
+          {error ? (
+            <Text className='text-red-500 text-center'>{error}</Text>
+          ) : null}
+
+          <Button 
+            className="bg-primary-500"
+            onPress={handleRegister}
+            disabled={isLoading}
+          >
+            <ButtonText className="text-white">
+              {isLoading ? 'Criando conta...' : 'Criar conta'}
+            </ButtonText>
           </Button>
         </Box>
 
