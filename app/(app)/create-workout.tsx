@@ -4,6 +4,7 @@ import { FormControl, FormControlLabel, FormControlLabelText } from '@/component
 import { HStack } from '@/components/ui/hstack'
 import { Input, InputField } from '@/components/ui/input'
 import { Pressable } from '@/components/ui/pressable'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useWorkout } from '@/contexts/WorkoutContext'
 import { router } from 'expo-router'
 import { Check, ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react-native'
@@ -30,6 +31,7 @@ interface DayWorkout {
 const CreateWorkoutPage = () => {
   const insets = useSafeAreaInsets();
   const { addWorkout } = useWorkout();
+  const { user } = useAuthContext();
   const [workoutName, setWorkoutName] = useState('')
   const [days, setDays] = useState<DayWorkout[]>([
     { day: 'Segunda-feira', division: '', exercises: [], isExpanded: false, isRestDay: false },
@@ -104,6 +106,11 @@ const CreateWorkoutPage = () => {
       return
     }
 
+    if (!user) {
+      alert('Usuário não autenticado')
+      return
+    }
+
     // Remove a propriedade isExpanded dos dias antes de salvar
     const daysToSave = days.map(({ isExpanded, ...day }) => ({
       ...day,
@@ -112,7 +119,8 @@ const CreateWorkoutPage = () => {
     
     addWorkout({
       name: workoutName,
-      days: daysToSave
+      days: daysToSave,
+      username: user.name
     })
 
     router.back()

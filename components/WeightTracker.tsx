@@ -19,23 +19,59 @@ const WeightTracker: React.FC<WeightTrackerProps> = ({
   exerciseId,
   exerciseName
 }) => {
-  const { addWeightRecord, getExerciseWeightHistory } = useWorkout()
+  const { 
+    addWeightRecord, 
+    addWeightRecordToSaved,
+    getExerciseWeightHistory, 
+    getSavedExerciseWeightHistory,
+    getWorkout,
+    getSavedWorkout
+  } = useWorkout()
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [weight, setWeight] = useState('')
   const [notes, setNotes] = useState('')
 
   // Verificações de segurança
-  if (!workoutId || dayIndex < 0 || !exerciseId || !exerciseName) {
-    return null
+  if (!workoutId || dayIndex < 0) {
+    return (
+      <View className='bg-red-50 p-3 rounded-lg border border-red-200'>
+        <Text className='text-red-800 text-sm'>
+          Dados inválidos: workoutId={workoutId}, dayIndex={dayIndex}
+        </Text>
+      </View>
+    )
   }
 
-  const weightHistory = getExerciseWeightHistory(workoutId, dayIndex, exerciseId)
+  if (!exerciseId || !exerciseName) {
+    return (
+      <View className='bg-red-50 p-3 rounded-lg border border-red-200'>
+        <Text className='text-red-800 text-sm'>
+          Dados do exercício inválidos: exerciseId={exerciseId}, exerciseName={exerciseName}
+        </Text>
+      </View>
+    )
+  }
+
+  // Detectar se é um treino salvo ou criado
+  const localWorkout = getWorkout(workoutId)
+  const savedWorkout = getSavedWorkout(workoutId)
+  const isFromSaved = savedWorkout !== undefined
+
+  // Usar as funções apropriadas baseado no tipo de treino
+  const weightHistory = isFromSaved 
+    ? getSavedExerciseWeightHistory(workoutId, dayIndex, exerciseId)
+    : getExerciseWeightHistory(workoutId, dayIndex, exerciseId)
+  
   const lastWeight = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1].weight : null
 
   const handleAddWeight = () => {
     const weightValue = parseFloat(weight)
     if (weightValue > 0) {
-      addWeightRecord(workoutId, dayIndex, exerciseId, weightValue, notes.trim() || undefined)
+      if (isFromSaved) {
+        addWeightRecordToSaved(workoutId, dayIndex, exerciseId, weightValue, notes.trim() || undefined)
+      } else {
+        addWeightRecord(workoutId, dayIndex, exerciseId, weightValue, notes.trim() || undefined)
+      }
       setWeight('')
       setNotes('')
       setIsModalVisible(false)

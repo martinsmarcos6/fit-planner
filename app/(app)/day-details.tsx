@@ -9,15 +9,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const DayDetailsPage = () => {
   const insets = useSafeAreaInsets();
-  const { workoutId, dayIndex } = useLocalSearchParams<{ 
+  const { workoutId, dayIndex, fromSaved } = useLocalSearchParams<{ 
     workoutId: string; 
-    dayIndex: string 
+    dayIndex: string;
+    fromSaved?: string;
   }>();
-  const { getWorkout } = useWorkout();
+  const { getWorkout, getSavedWorkout } = useWorkout();
 
-  const workout = getWorkout(workoutId || '');
+  const isFromSaved = fromSaved === 'true';
+  const localWorkout = getWorkout(workoutId || '');
+  const savedWorkout = getSavedWorkout(workoutId || '');
+  
+  const workout = isFromSaved ? savedWorkout : localWorkout;
   const dayIndexNum = parseInt(dayIndex || '0');
-  const day = workout?.days[dayIndexNum];
+  
+  // Usar a estrutura correta baseada no tipo de treino
+  const day = isFromSaved && savedWorkout
+    ? savedWorkout.workoutDays[dayIndexNum]
+    : localWorkout?.days[dayIndexNum];
 
   if (!workout || !day) {
     return (
@@ -29,6 +38,16 @@ const DayDetailsPage = () => {
       </View>
     );
   }
+
+  // Função para obter a data apropriada
+  const getWorkoutDate = () => {
+    if (isFromSaved && savedWorkout) {
+      return savedWorkout.savedAt.toLocaleDateString('pt-BR');
+    } else if (localWorkout) {
+      return localWorkout.createdAt.toLocaleDateString('pt-BR');
+    }
+    return '';
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
@@ -83,7 +102,10 @@ const DayDetailsPage = () => {
             <HStack className='items-center gap-2'>
               <Calendar size={14} className='text-typography-500' />
               <Text className='text-typography-600 text-sm'>
-                Criado em {workout.createdAt.toLocaleDateString('pt-BR')}
+                {isFromSaved 
+                  ? `Salvo em ${getWorkoutDate()}`
+                  : `Criado em ${getWorkoutDate()}`
+                }
               </Text>
             </HStack>
           </View>
@@ -117,7 +139,7 @@ const DayDetailsPage = () => {
                 </Text>
               </View>
             ) : (
-              day.exercises.map((exercise, exerciseIndex) => (
+              day.exercises.map((exercise: any, exerciseIndex: number) => (
                 <View key={exercise.id} className='bg-white rounded-lg p-4 border border-gray-200'>
                   <View className='flex-col gap-3'>
                     {/* Header do exercício */}
@@ -145,12 +167,14 @@ const DayDetailsPage = () => {
                     </View>
                     
                     {/* Componente de rastreamento de peso */}
-                    <WeightTracker
-                      workoutId={workoutId || ''}
-                      dayIndex={dayIndexNum}
-                      exerciseId={exercise.id}
-                      exerciseName={exercise.name}
-                    />
+                    {exercise.id && (
+                      <WeightTracker
+                        workoutId={workoutId || ''}
+                        dayIndex={dayIndexNum}
+                        exerciseId={exercise.id}
+                        exerciseName={exercise.name}
+                      />
+                    )}
                   </View>
                 </View>
               ))
