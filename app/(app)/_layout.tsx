@@ -1,65 +1,76 @@
 import { AuthGuard } from '@/components/AuthGuard';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Dumbbell, HelpCircle, Search, User } from 'lucide-react-native';
+import { Tabs } from 'expo-router';
+import { Dumbbell, Search, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const Tab = createBottomTabNavigator();
-
 export default function AppLayout() {
-  const insets = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
 
   return (
     <AuthGuard>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            if (route.name === 'profile') {
-              return <User color={color} size={size} />
-            } else if (route.name === 'workouts') {
-              return <Dumbbell color={color} size={size} />
-            } else if (route.name === 'explore') {
-              return <Search color={color} size={size} />
-            } else {
-              return <HelpCircle color={color} size={size} />
-            }
-          },
-          tabBarActiveTintColor: '#FF5900',
-          tabBarInactiveTintColor: 'gray',
-          headerShown: false,
-          tabBarStyle: {
-            backgroundColor: 'white',
-            borderTopWidth: 1,
-            borderTopColor: '#E5E5E5',
-            height: 60 + insets.bottom,
-            paddingBottom: 5 + insets.bottom,
-            paddingTop: 5,
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '500',
-          },
-        })}
-      >
-        <Tab.Screen 
+      <Tabs screenOptions={{ 
+        headerShown: false,
+        tabBarActiveTintColor: '#FF5900',
+        tabBarInactiveTintColor: '#6b7280',
+        tabBarStyle: {
+          backgroundColor: '#ffffff',
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+          paddingTop: 8,
+          paddingBottom: bottom + 6,
+          height: 60 + bottom
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          paddingBottom: 8,
+        }
+      }}>
+        <Tabs.Screen 
           name="workouts" 
-          component={require('./workouts').default}
-          options={{ tabBarLabel: 'Treinos' }}
+          options={{
+            title: 'Treinos',
+            tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />
+          }}
         />
-        <Tab.Screen 
+        <Tabs.Screen 
+          name="create-workout" 
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen 
           name="explore" 
-          component={require('./explore').default}
-          options={{ tabBarLabel: 'Explorar' }}
+          options={{
+            title: 'Explorar',
+            tabBarIcon: ({ color, size }) => <Search size={size} color={color} />
+          }}
         />
-        <Tab.Screen 
+        <Tabs.Screen 
           name="profile" 
-          component={require('./profile').default}
-          options={{ tabBarLabel: 'Perfil' }}
+          options={{
+            title: 'Perfil',
+            tabBarIcon: ({ color, size }) => <User size={size} color={color} />
+          }}
         />
-      </Tab.Navigator>
+        <Tabs.Screen 
+          name="workout-details" 
+          options={{
+            href: null, // Esconde esta tela da bottom navigation
+          }}
+        />
+        <Tabs.Screen 
+          name="day-details" 
+          options={{
+            href: null, // Esconde esta tela da bottom navigation
+          }}
+        />
+        <Tabs.Screen 
+          name="edit-workout" 
+          options={{
+            href: null, // Esconde esta tela da bottom navigation
+          }}
+        />
+      </Tabs>
     </AuthGuard>
   );
 } 
