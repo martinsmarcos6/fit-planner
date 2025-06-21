@@ -122,9 +122,16 @@ const WorkoutsPage = () => {
                 >
                   <HStack className='justify-between items-center'>
                     <View className='flex-1'>
-                      <Text className='text-lg font-semibold text-typography-900'>
-                        {workout.name}
-                      </Text>
+                      <HStack className='items-center gap-2 mb-1'>
+                        <Text className='text-lg font-semibold text-typography-900'>
+                          {workout.name}
+                        </Text>
+                      </HStack>
+                      {workout.description && (
+                        <Text className='text-typography-600 text-sm mb-1'>
+                          {workout.description}
+                        </Text>
+                      )}
                       <HStack className='items-center gap-2 mb-1'>
                         <User size={12} className='text-typography-500' />
                         <Text className='text-typography-600 text-sm'>
@@ -179,6 +186,11 @@ const WorkoutsPage = () => {
                         </Text>
                         <Text className='text-2xl'>{workout.image}</Text>
                       </HStack>
+                      {workout.description && (
+                        <Text className='text-typography-600 text-sm mb-1'>
+                          {workout.description}
+                        </Text>
+                      )}
                       <HStack className='items-center gap-2 mb-1'>
                         <User size={12} className='text-typography-500' />
                         <Text className='text-typography-600 text-sm'>

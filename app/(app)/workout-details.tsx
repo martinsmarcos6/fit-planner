@@ -224,9 +224,11 @@ const WorkoutDetailsPage = () => {
         {/* Header */}
         <View className='mb-6'>
           <HStack className='justify-between items-center mb-4'>
-            <Text className='text-3xl font-bold text-typography-900 flex-1 mr-4'>
-              {workout.name}
-            </Text>
+            <HStack className='items-center gap-3 flex-1 mr-4'>
+              <Text className='text-3xl font-bold text-typography-900'>
+                {workout.name}
+              </Text>
+            </HStack>
             <HStack className='gap-2'>
               {fromExplore === 'true' ? (
                 <Button 
@@ -302,6 +304,15 @@ const WorkoutDetailsPage = () => {
                   Criado em {workout.createdAt.toLocaleDateString('pt-BR')}
                 </Text>
               </HStack>
+            )}
+            
+            {/* Descrição do treino (se existir) */}
+            {workout.description && (
+              <View className='mt-3 pt-3 border-t border-gray-100'>
+                <Text className='text-typography-600 text-sm'>
+                  {workout.description}
+                </Text>
+              </View>
             )}
           </View>
         </View>

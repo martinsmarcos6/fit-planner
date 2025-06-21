@@ -25,6 +25,8 @@ interface DayWorkout {
 interface Workout {
   id: string
   name: string
+  description?: string
+  emoji: string
   days: DayWorkout[]
   createdAt: Date
   username: string
@@ -95,7 +97,10 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
         return {
           ...workout,
           name: workoutData.name,
-          days: workoutData.days
+          description: workoutData.description,
+          emoji: workoutData.emoji,
+          days: workoutData.days,
+          username: workoutData.username
         }
       }
       return workout

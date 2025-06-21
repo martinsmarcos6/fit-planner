@@ -33,6 +33,9 @@ const CreateWorkoutPage = () => {
   const { addWorkout } = useWorkout();
   const { user } = useAuthContext();
   const [workoutName, setWorkoutName] = useState('')
+  const [workoutDescription, setWorkoutDescription] = useState('')
+  const [selectedEmoji, setSelectedEmoji] = useState('💪')
+  const [showEmojiPopup, setShowEmojiPopup] = useState(false)
   const [days, setDays] = useState<DayWorkout[]>([
     { day: 'Segunda-feira', division: '', exercises: [], isExpanded: false, isRestDay: false },
     { day: 'Terça-feira', division: '', exercises: [], isExpanded: false, isRestDay: false },
@@ -43,9 +46,18 @@ const CreateWorkoutPage = () => {
     { day: 'Domingo', division: '', exercises: [], isExpanded: false, isRestDay: false },
   ])
 
+  // Emojis predefinidos para seleção
+  const workoutEmojis = [
+    '💪', '🏋️', '🔥', '⚡', '💯', '🎯', '🚀', '⭐', '🌟', '💎',
+    '🏃', '🚴', '🏊', '🧘', '🥊'
+  ]
+
   // Limpar estado quando a página é montada
   useEffect(() => {
     setWorkoutName('')
+    setWorkoutDescription('')
+    setSelectedEmoji('💪')
+    setShowEmojiPopup(false)
     setDays([
       { day: 'Segunda-feira', division: '', exercises: [], isExpanded: false, isRestDay: false },
       { day: 'Terça-feira', division: '', exercises: [], isExpanded: false, isRestDay: false },
@@ -119,6 +131,8 @@ const CreateWorkoutPage = () => {
     
     addWorkout({
       name: workoutName,
+      description: workoutDescription,
+      emoji: selectedEmoji,
       days: daysToSave,
       username: user.name
     })
@@ -149,6 +163,41 @@ const CreateWorkoutPage = () => {
           </HStack>
         </View>
 
+        {/* Emoji Avatar - Primeiro Campo */}
+        <View className='mb-6 items-center'>
+          <Text className='text-typography-700 font-medium mb-3'>Emoji do Treino</Text>
+          <Pressable 
+            onPress={() => setShowEmojiPopup(!showEmojiPopup)}
+            className='w-20 h-20 bg-white border-2 border-gray-200 rounded-full items-center justify-center shadow-sm'
+          >
+            <Text className='text-4xl'>{selectedEmoji}</Text>
+          </Pressable>
+          
+          {showEmojiPopup && (
+            <View className='mt-4 bg-white border border-gray-200 rounded-lg p-4 w-full shadow-lg'>
+              <Text className='text-typography-700 font-medium mb-4 text-center'>Selecione um emoji:</Text>
+              <View className='flex-row flex-wrap justify-center gap-3'>
+                {workoutEmojis.map((emoji) => (
+                  <Pressable 
+                    key={emoji}
+                    onPress={() => {
+                      setSelectedEmoji(emoji)
+                      setShowEmojiPopup(false)
+                    }}
+                    className={`w-12 h-12 rounded-full items-center justify-center border-2 ${
+                      selectedEmoji === emoji 
+                        ? 'border-primary-500 bg-primary-50' 
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <Text className='text-2xl'>{emoji}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* Nome do Treino */}
         <View className='mb-6'>
           <FormControl>
@@ -160,6 +209,22 @@ const CreateWorkoutPage = () => {
                 placeholder="Ex: PPL + Upper + Lower"
                 value={workoutName}
                 onChangeText={setWorkoutName}
+              />
+            </Input>
+          </FormControl>
+        </View>
+
+        {/* Descrição do Treino */}
+        <View className='mb-6'>
+          <FormControl>
+            <FormControlLabel>
+              <FormControlLabelText>Descrição do Treino</FormControlLabelText>
+            </FormControlLabel>
+            <Input>
+              <InputField 
+                placeholder="Ex: Treino para aumentar a massa muscular"
+                value={workoutDescription}
+                onChangeText={setWorkoutDescription}
               />
             </Input>
           </FormControl>

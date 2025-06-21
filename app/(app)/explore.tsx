@@ -471,6 +471,11 @@ const ExplorePage = () => {
         <Text className='font-semibold text-typography-900 text-sm mb-1' numberOfLines={1}>
           {item.name}
         </Text>
+        {item.description && (
+          <Text className='text-xs text-typography-600 mb-1' numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
         <Text className='text-xs text-typography-600 mb-1'>
           @{item.creator}
         </Text>
