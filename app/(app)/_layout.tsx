@@ -76,6 +76,12 @@ export default function AppLayout() {
             href: null, // Esconde esta tela da bottom navigation
           }}
         />
+        <Tabs.Screen 
+          name="user-profile" 
+          options={{
+            href: null, // Esconde esta tela da bottom navigation
+          }}
+        />
       </Tabs>
     </AuthGuard>
   );

@@ -105,6 +105,33 @@ const WorkoutDetailsPage = () => {
     setIsLiked(!isLiked);
   };
 
+  const navigateToUserProfile = (creator: string) => {
+    // Buscar informações do usuário baseado no username
+    const mockUsers = [
+      { id: 1, username: 'joao_treino', name: 'João Silva', avatar: '👨‍💪', isVerified: true },
+      { id: 2, username: 'maria_fitness', name: 'Maria Santos', avatar: '👩‍🏃‍♀️', isVerified: false },
+      { id: 3, username: 'pedro_yoga', name: 'Pedro Costa', avatar: '🧘‍♂️', isVerified: true },
+      { id: 4, username: 'ana_pilates', name: 'Ana Oliveira', avatar: '🤸‍♀️', isVerified: false },
+      { id: 5, username: 'carlos_crossfit', name: 'Carlos Mendes', avatar: '🏋️‍♂️', isVerified: true },
+      { id: 6, username: 'julia_yoga', name: 'Julia Santos', avatar: '🧘‍♀️', isVerified: false },
+    ];
+
+    const user = mockUsers.find(u => u.username === creator);
+    
+    if (user) {
+      router.push({
+        pathname: '/user-profile',
+        params: { 
+          userId: user.id.toString(),
+          username: user.username,
+          name: user.name,
+          avatar: user.avatar,
+          isVerified: user.isVerified.toString()
+        }
+      });
+    }
+  };
+
   const openWeightModal = (exercise: any, dayIndex: number) => {
     setSelectedExercise(exercise);
     setSelectedDayIndex(dayIndex);
@@ -234,12 +261,16 @@ const WorkoutDetailsPage = () => {
             {/* Informações específicas para treinos da tela de explorar */}
             {fromExplore === 'true' && exploreWorkout ? (
               <View className='space-y-3'>
-                <HStack className='items-center gap-2'>
+                <TouchableOpacity 
+                  onPress={() => navigateToUserProfile(exploreWorkout.creator)}
+                  className='flex-row items-center gap-2'
+                >
                   <User size={14} className='text-typography-500' />
                   <Text className='text-typography-600 text-sm'>
                     Criado por @{exploreWorkout.creator}
                   </Text>
-                </HStack>
+                  <Text className='text-blue-500 text-xs'>Ver perfil</Text>
+                </TouchableOpacity>
                 <HStack className='items-center gap-2'>
                   <Clock size={14} className='text-typography-500' />
                   <Text className='text-typography-600 text-sm'>

@@ -393,8 +393,16 @@ const ExplorePage = () => {
   };
 
   const handleUserSelect = (user: any) => {
-    setSearchQuery(user.username);
-    setIsSearchModalOpen(false);
+    router.push({
+      pathname: '/user-profile',
+      params: { 
+        userId: user.id.toString(),
+        username: user.username,
+        name: user.name,
+        avatar: user.avatar,
+        isVerified: user.isVerified.toString()
+      }
+    });
   };
 
   const handleSearchWorkouts = () => {
