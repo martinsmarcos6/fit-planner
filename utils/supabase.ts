@@ -61,6 +61,9 @@ export interface Database {
           user_id: string
           name: string
           description: string | null
+          emoji: string
+          is_public: boolean
+          likes_count: number
           created_at: string
           updated_at: string
         }
@@ -69,6 +72,9 @@ export interface Database {
           user_id: string
           name: string
           description?: string | null
+          emoji: string
+          is_public?: boolean
+          likes_count?: number
           created_at?: string
           updated_at?: string
         }
@@ -77,10 +83,146 @@ export interface Database {
           user_id?: string
           name?: string
           description?: string | null
+          emoji?: string
+          is_public?: boolean
+          likes_count?: number
           created_at?: string
           updated_at?: string
         }
       }
+      workout_days: {
+        Row: {
+          id: string
+          workout_id: string
+          day: string
+          division: string
+          is_rest_day: boolean
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workout_id: string
+          day: string
+          division: string
+          is_rest_day?: boolean
+          order_index: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workout_id?: string
+          day?: string
+          division?: string
+          is_rest_day?: boolean
+          order_index?: number
+          created_at?: string
+        }
+      }
+      exercises: {
+        Row: {
+          id: string
+          workout_day_id: string
+          name: string
+          sets: number
+          reps: string
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workout_day_id: string
+          name: string
+          sets: number
+          reps: string
+          order_index: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workout_day_id?: string
+          name?: string
+          sets?: number
+          reps?: string
+          order_index?: number
+          created_at?: string
+        }
+      }
+      weight_records: {
+        Row: {
+          id: string
+          exercise_id: string
+          user_id: string
+          weight: number
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          exercise_id: string
+          user_id: string
+          weight: number
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          exercise_id?: string
+          user_id?: string
+          weight?: number
+          notes?: string | null
+          created_at?: string
+        }
+      }
+      saved_workouts: {
+        Row: {
+          id: string
+          user_id: string
+          workout_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          workout_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          workout_id?: string
+          created_at?: string
+        }
+      }
+      workout_likes: {
+        Row: {
+          id: string
+          user_id: string
+          workout_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          workout_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          workout_id?: string
+          created_at?: string
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
     }
   }
 }

@@ -112,7 +112,7 @@ const CreateWorkoutPage = () => {
     setDays(updatedDays)
   }
 
-  const saveWorkout = () => {
+  const saveWorkout = async () => {
     if (!workoutName.trim()) {
       alert('Por favor, insira um nome para o treino')
       return
@@ -123,21 +123,28 @@ const CreateWorkoutPage = () => {
       return
     }
 
-    // Remove a propriedade isExpanded dos dias antes de salvar
-    const daysToSave = days.map(({ isExpanded, ...day }) => ({
-      ...day,
-      isRestDay: day.isRestDay
-    }))
-    
-    addWorkout({
-      name: workoutName,
-      description: workoutDescription,
-      emoji: selectedEmoji,
-      days: daysToSave,
-      username: user.name
-    })
+    try {
+      // Remove a propriedade isExpanded dos dias antes de salvar
+      const daysToSave = days
+        .filter(day => !day.isRestDay || day.exercises.length > 0) // Remove dias vazios
+        .map(({ isExpanded, ...day }) => ({
+          ...day,
+          isRestDay: day.isRestDay
+        }))
+      
+      await addWorkout({
+        name: workoutName,
+        description: workoutDescription,
+        emoji: selectedEmoji,
+        days: daysToSave,
+        username: user.name
+      })
 
-    router.back()
+      router.back()
+    } catch (error) {
+      console.error('Erro ao criar treino:', error)
+      alert('Erro ao criar treino. Tente novamente.')
+    }
   }
 
   return (

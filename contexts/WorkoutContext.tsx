@@ -1,4 +1,5 @@
-import React, { createContext, ReactNode, useContext, useState } from 'react'
+import { PublicWorkout, workoutHelpers, WorkoutWithDetails } from '@/utils/supabase-helpers'
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 
 interface WeightRecord {
   id: string
@@ -30,6 +31,7 @@ interface Workout {
   days: DayWorkout[]
   createdAt: Date
   username: string
+  likes_count: number
 }
 
 interface SavedWorkout {
@@ -50,18 +52,26 @@ interface SavedWorkout {
 interface WorkoutContextType {
   workouts: Workout[]
   savedWorkouts: SavedWorkout[]
-  addWorkout: (workout: Omit<Workout, 'id' | 'createdAt'>) => void
-  updateWorkout: (id: string, workoutData: Omit<Workout, 'id' | 'createdAt'>) => void
-  deleteWorkout: (id: string) => void
+  publicWorkouts: PublicWorkout[]
+  loading: boolean
+  addWorkout: (workout: Omit<Workout, 'id' | 'createdAt'>) => Promise<void>
+  updateWorkout: (id: string, workoutData: Omit<Workout, 'id' | 'createdAt'>) => Promise<void>
+  deleteWorkout: (id: string) => Promise<void>
   getWorkout: (id: string) => Workout | undefined
   getSavedWorkout: (id: string) => SavedWorkout | undefined
-  addWeightRecord: (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => void
-  addWeightRecordToSaved: (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => void
+  addWeightRecord: (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => Promise<void>
+  addWeightRecordToSaved: (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => Promise<void>
   getExerciseWeightHistory: (workoutId: string, dayIndex: number, exerciseId: string) => WeightRecord[]
   getSavedExerciseWeightHistory: (workoutId: string, dayIndex: number, exerciseId: string) => WeightRecord[]
-  saveWorkout: (workoutData: any) => void
-  unsaveWorkout: (id: string) => void
+  saveWorkout: (workoutData: any) => Promise<void>
+  unsaveWorkout: (id: string) => Promise<void>
   isWorkoutSaved: (id: string) => boolean
+  likeWorkout: (id: string) => Promise<void>
+  unlikeWorkout: (id: string) => Promise<void>
+  isWorkoutLiked: (id: string) => boolean
+  refreshWorkouts: () => Promise<void>
+  refreshPublicWorkouts: () => Promise<void>
+  refreshSavedWorkouts: () => Promise<void>
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined)
@@ -81,34 +91,155 @@ interface WorkoutProviderProps {
 export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) => {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([])
+  const [publicWorkouts, setPublicWorkouts] = useState<PublicWorkout[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const addWorkout = (workoutData: Omit<Workout, 'id' | 'createdAt'>) => {
-    const newWorkout: Workout = {
-      ...workoutData,
-      id: Date.now().toString(),
-      createdAt: new Date()
+  // Converter WorkoutWithDetails para Workout (formato local)
+  const convertWorkoutWithDetails = (workoutWithDetails: WorkoutWithDetails): Workout => {
+    return {
+      id: workoutWithDetails.id,
+      name: workoutWithDetails.name,
+      description: workoutWithDetails.description || undefined,
+      emoji: workoutWithDetails.emoji,
+      createdAt: new Date(workoutWithDetails.created_at),
+      username: workoutWithDetails.profile?.username || 'Usuário',
+      likes_count: workoutWithDetails.likes_count,
+      days: workoutWithDetails.workout_days.map(day => ({
+        day: day.day,
+        division: day.division,
+        isRestDay: day.is_rest_day,
+        exercises: day.exercises.map(exercise => ({
+          id: exercise.id,
+          name: exercise.name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          weightHistory: exercise.weight_records.map(record => ({
+            id: record.id,
+            weight: record.weight,
+            date: new Date(record.created_at),
+            notes: record.notes || undefined
+          }))
+        }))
+      }))
     }
-    setWorkouts(prev => [...prev, newWorkout])
   }
 
-  const updateWorkout = (id: string, workoutData: Omit<Workout, 'id' | 'createdAt'>) => {
-    setWorkouts(prev => prev.map(workout => {
-      if (workout.id === id) {
-        return {
-          ...workout,
-          name: workoutData.name,
-          description: workoutData.description,
-          emoji: workoutData.emoji,
-          days: workoutData.days,
-          username: workoutData.username
+  // Converter PublicWorkout para SavedWorkout (formato local)
+  const convertPublicWorkout = (publicWorkout: PublicWorkout): SavedWorkout => {
+    return {
+      id: publicWorkout.id,
+      name: publicWorkout.name,
+      creator: publicWorkout.profile?.username || 'Usuário',
+      duration: '4 semanas',
+      difficulty: 'Intermediário',
+      likes: publicWorkout.likes_count,
+      image: publicWorkout.emoji,
+      description: publicWorkout.description || '',
+      exercises: 0, // Será calculado quando necessário
+      days: 0, // Será calculado quando necessário
+      workoutDays: [], // Será carregado quando necessário
+      savedAt: new Date()
+    }
+  }
+
+  // Carregar treinos do usuário
+  const loadUserWorkouts = async () => {
+    try {
+      setLoading(true)
+      const workoutDetails = await workoutHelpers.getUserWorkouts()
+      const convertedWorkouts = workoutDetails.map(convertWorkoutWithDetails)
+      setWorkouts(convertedWorkouts)
+    } catch (error) {
+      console.error('Erro ao carregar treinos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Carregar treinos públicos
+  const loadPublicWorkouts = async () => {
+    try {
+      const publicWorkoutsData = await workoutHelpers.getPublicWorkouts()
+      setPublicWorkouts(publicWorkoutsData)
+    } catch (error) {
+      console.error('Erro ao carregar treinos públicos:', error)
+    }
+  }
+
+  // Carregar treinos salvos
+  const loadSavedWorkouts = async () => {
+    try {
+      const savedWorkoutsData = await workoutHelpers.getSavedWorkouts()
+      const convertedSavedWorkouts = savedWorkoutsData.map(convertPublicWorkout)
+      setSavedWorkouts(convertedSavedWorkouts)
+    } catch (error) {
+      console.error('Erro ao carregar treinos salvos:', error)
+    }
+  }
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    loadUserWorkouts()
+    loadPublicWorkouts()
+    loadSavedWorkouts()
+  }, [])
+
+  const addWorkout = async (workoutData: Omit<Workout, 'id' | 'createdAt'>) => {
+    try {
+      const workoutId = await workoutHelpers.createWorkout({
+        name: workoutData.name,
+        description: workoutData.description,
+        emoji: workoutData.emoji,
+        is_public: false,
+        days: workoutData.days.map(day => ({
+          day: day.day,
+          division: day.division,
+          is_rest_day: day.isRestDay,
+          exercises: day.exercises.map(exercise => ({
+            name: exercise.name,
+            sets: exercise.sets,
+            reps: exercise.reps
+          }))
+        }))
+      })
+
+      if (workoutId) {
+        // Buscar o treino criado com detalhes completos
+        const workoutWithDetails = await workoutHelpers.getWorkoutWithDetails(workoutId)
+        if (workoutWithDetails) {
+          const convertedWorkout = convertWorkoutWithDetails(workoutWithDetails)
+          setWorkouts(prev => [...prev, convertedWorkout])
         }
       }
-      return workout
-    }))
+    } catch (error) {
+      console.error('Erro ao criar treino:', error)
+    }
   }
 
-  const deleteWorkout = (id: string) => {
-    setWorkouts(prev => prev.filter(workout => workout.id !== id))
+  const updateWorkout = async (id: string, workoutData: Omit<Workout, 'id' | 'createdAt'>) => {
+    try {
+      await workoutHelpers.updateWorkout(id, {
+        name: workoutData.name,
+        description: workoutData.description,
+        emoji: workoutData.emoji
+      })
+
+      // Recarregar treinos para obter dados atualizados
+      await loadUserWorkouts()
+    } catch (error) {
+      console.error('Erro ao atualizar treino:', error)
+    }
+  }
+
+  const deleteWorkout = async (id: string) => {
+    try {
+      const success = await workoutHelpers.deleteWorkout(id)
+      if (success) {
+        setWorkouts(prev => prev.filter(workout => workout.id !== id))
+      }
+    } catch (error) {
+      console.error('Erro ao deletar treino:', error)
+    }
   }
 
   const getWorkout = (id: string) => {
@@ -119,96 +250,24 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
     return savedWorkouts.find(workout => workout.id === id)
   }
 
-  const saveWorkout = (workoutData: any) => {
-    // Converter os dados do treino para o formato SavedWorkout com exercícios estruturados
-    const convertedWorkoutDays: DayWorkout[] = workoutData.workoutDays.map((day: any) => ({
-      day: day.day,
-      division: day.division,
-      isRestDay: day.isRestDay,
-      exercises: day.exercises.map((exercise: any) => ({
-        id: `${workoutData.id}_${day.day}_${exercise.name}`.replace(/\s+/g, '_'),
-        name: exercise.name,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        weightHistory: []
-      }))
-    }));
-
-    const newSavedWorkout: SavedWorkout = {
-      ...workoutData,
-      id: workoutData.id.toString(),
-      workoutDays: convertedWorkoutDays,
-      savedAt: new Date()
+  const addWeightRecord = async (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => {
+    try {
+      await workoutHelpers.addWeightRecord(exerciseId, weight, notes)
+      // Recarregar treinos para obter dados atualizados
+      await loadUserWorkouts()
+    } catch (error) {
+      console.error('Erro ao adicionar registro de peso:', error)
     }
-    setSavedWorkouts(prev => [...prev, newSavedWorkout])
   }
 
-  const unsaveWorkout = (id: string) => {
-    setSavedWorkouts(prev => prev.filter(workout => workout.id !== id))
-  }
-
-  const isWorkoutSaved = (id: string) => {
-    return savedWorkouts.some(workout => workout.id === id)
-  }
-
-  const addWeightRecord = (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => {
-    setWorkouts(prev => prev.map(workout => {
-      if (workout.id === workoutId) {
-        const updatedDays = [...workout.days]
-        const day = updatedDays[dayIndex]
-        if (day) {
-          const updatedExercises = day.exercises.map(exercise => {
-            if (exercise.id === exerciseId) {
-              const newRecord: WeightRecord = {
-                id: Date.now().toString(),
-                weight,
-                date: new Date(),
-                notes
-              }
-              const currentWeightHistory = exercise.weightHistory || []
-              return {
-                ...exercise,
-                weightHistory: [...currentWeightHistory, newRecord]
-              }
-            }
-            return exercise
-          })
-          updatedDays[dayIndex] = { ...day, exercises: updatedExercises }
-        }
-        return { ...workout, days: updatedDays }
-      }
-      return workout
-    }))
-  }
-
-  const addWeightRecordToSaved = (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => {
-    setSavedWorkouts(prev => prev.map(workout => {
-      if (workout.id === workoutId) {
-        const updatedDays = [...workout.workoutDays]
-        const day = updatedDays[dayIndex]
-        if (day) {
-          const updatedExercises = day.exercises.map(exercise => {
-            if (exercise.id === exerciseId) {
-              const newRecord: WeightRecord = {
-                id: Date.now().toString(),
-                weight,
-                date: new Date(),
-                notes
-              }
-              const currentWeightHistory = exercise.weightHistory || []
-              return {
-                ...exercise,
-                weightHistory: [...currentWeightHistory, newRecord]
-              }
-            }
-            return exercise
-          })
-          updatedDays[dayIndex] = { ...day, exercises: updatedExercises }
-        }
-        return { ...workout, workoutDays: updatedDays }
-      }
-      return workout
-    }))
+  const addWeightRecordToSaved = async (workoutId: string, dayIndex: number, exerciseId: string, weight: number, notes?: string) => {
+    try {
+      await workoutHelpers.addWeightRecord(exerciseId, weight, notes)
+      // Recarregar treinos salvos para obter dados atualizados
+      await loadSavedWorkouts()
+    } catch (error) {
+      console.error('Erro ao adicionar registro de peso:', error)
+    }
   }
 
   const getExerciseWeightHistory = (workoutId: string, dayIndex: number, exerciseId: string): WeightRecord[] => {
@@ -227,9 +286,68 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
     return exercise?.weightHistory || []
   }
 
+  const saveWorkout = async (workoutData: any) => {
+    try {
+      await workoutHelpers.saveWorkout(workoutData.id)
+      await loadSavedWorkouts()
+    } catch (error) {
+      console.error('Erro ao salvar treino:', error)
+    }
+  }
+
+  const unsaveWorkout = async (id: string) => {
+    try {
+      await workoutHelpers.unsaveWorkout(id)
+      setSavedWorkouts(prev => prev.filter(workout => workout.id !== id))
+    } catch (error) {
+      console.error('Erro ao remover treino salvo:', error)
+    }
+  }
+
+  const isWorkoutSaved = (id: string) => {
+    return savedWorkouts.some(workout => workout.id === id)
+  }
+
+  const likeWorkout = async (id: string) => {
+    try {
+      await workoutHelpers.likeWorkout(id)
+      await loadPublicWorkouts()
+    } catch (error) {
+      console.error('Erro ao dar like no treino:', error)
+    }
+  }
+
+  const unlikeWorkout = async (id: string) => {
+    try {
+      await workoutHelpers.unlikeWorkout(id)
+      await loadPublicWorkouts()
+    } catch (error) {
+      console.error('Erro ao remover like do treino:', error)
+    }
+  }
+
+  const isWorkoutLiked = (id: string) => {
+    const publicWorkout = publicWorkouts.find(workout => workout.id === id)
+    return publicWorkout?.is_liked || false
+  }
+
+  const refreshWorkouts = async () => {
+    await loadUserWorkouts()
+  }
+
+  const refreshPublicWorkouts = async () => {
+    await loadPublicWorkouts()
+  }
+
+  const refreshSavedWorkouts = async () => {
+    await loadSavedWorkouts()
+  }
+
   const value: WorkoutContextType = {
     workouts,
     savedWorkouts,
+    publicWorkouts,
+    loading,
     addWorkout,
     updateWorkout,
     deleteWorkout,
@@ -241,7 +359,13 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
     getSavedExerciseWeightHistory,
     saveWorkout,
     unsaveWorkout,
-    isWorkoutSaved
+    isWorkoutSaved,
+    likeWorkout,
+    unlikeWorkout,
+    isWorkoutLiked,
+    refreshWorkouts,
+    refreshPublicWorkouts,
+    refreshSavedWorkouts
   }
 
   return (

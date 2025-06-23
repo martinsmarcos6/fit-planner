@@ -5,12 +5,12 @@ import { useWorkout } from '@/contexts/WorkoutContext'
 import { router } from 'expo-router'
 import { ChevronRight, Heart, Plus, User } from 'lucide-react-native'
 import { useState } from 'react'
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const WorkoutsPage = () => {
   const insets = useSafeAreaInsets();
-  const { workouts, savedWorkouts } = useWorkout();
+  const { workouts, savedWorkouts, loading } = useWorkout();
   const [activeTab, setActiveTab] = useState<'my' | 'saved'>('my');
   
   const handleCreateWorkout = () => {
@@ -101,7 +101,12 @@ const WorkoutsPage = () => {
           paddingBottom: insets.bottom + 80
         }}
       >
-        {activeTab === 'my' ? (
+        {loading ? (
+          <View className='flex-1 justify-center items-center py-20'>
+            <ActivityIndicator size="large" color="#6366f1" />
+            <Text className='text-typography-600 mt-4'>Carregando treinos...</Text>
+          </View>
+        ) : activeTab === 'my' ? (
           // Aba Meus Treinos
           <View className='flex-col gap-3'>
             {workouts.length === 0 ? (
@@ -142,7 +147,7 @@ const WorkoutsPage = () => {
                         <HStack className='items-center gap-1'>
                           <Heart size={12} className='text-typography-500' />
                           <Text className='text-typography-500 text-xs'>
-                            100
+                            {workout.likes_count}
                           </Text>
                         </HStack>
                       </HStack>

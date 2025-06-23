@@ -1,74 +1,60 @@
-import { useAuthContext } from '@/contexts/AuthContext';
-import { profileHelpers, realtimeHelpers, workoutHelpers } from '@/utils/supabase-helpers';
+import { useWorkout } from '@/contexts/WorkoutContext';
+import { generalHelpers, profileHelpers, PublicWorkout, workoutHelpers, WorkoutWithDetails } from '@/utils/supabase-helpers';
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Text, View } from 'react-native';
 
 // Exemplo de componente que usa os helpers do Supabase
-export const SupabaseUsageExample: React.FC = () => {
-  const { user, isAuthenticated } = useAuthContext();
-  const [workouts, setWorkouts] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+export const SupabaseUsageExample = () => {
+  const [workouts, setWorkouts] = useState<WorkoutWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Carregar dados na inicialização
   useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-      setupRealtimeSubscriptions();
-    }
-  }, [isAuthenticated]);
+    loadWorkouts();
+  }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadWorkouts = async () => {
     try {
-      // Carregar perfil do usuário
-      const userProfile = await profileHelpers.getCurrentProfile();
-      setProfile(userProfile);
-
-      // Carregar treinos do usuário
+      setLoading(true);
       const userWorkouts = await workoutHelpers.getUserWorkouts();
       setWorkouts(userWorkouts);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os dados');
+      console.error('Erro ao carregar treinos:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const setupRealtimeSubscriptions = () => {
-    // Escutar mudanças nos treinos em tempo real
-    const workoutSubscription = realtimeHelpers.subscribeToWorkouts((updatedWorkout) => {
-      console.log('Treino atualizado em tempo real:', updatedWorkout);
-      // Atualizar a lista de treinos
-      loadData();
-    });
-
-    // Escutar mudanças no perfil em tempo real
-    const profileSubscription = realtimeHelpers.subscribeToProfile((updatedProfile) => {
-      console.log('Perfil atualizado em tempo real:', updatedProfile);
-      setProfile(updatedProfile);
-    });
-
-    // Cleanup das subscriptions
-    return () => {
-      workoutSubscription?.then(sub => sub?.unsubscribe());
-      profileSubscription?.then(sub => sub?.unsubscribe());
-    };
-  };
-
-  const handleCreateWorkout = async () => {
+  const createWorkout = async () => {
     try {
       const newWorkout = await workoutHelpers.createWorkout({
-        name: 'Treino de Teste',
-        description: 'Este é um treino criado para teste',
+        name: 'Meu Novo Treino',
+        description: 'Um treino incrível',
+        emoji: '💪',
+        is_public: false,
+        days: [
+          {
+            day: 'Segunda-feira',
+            division: 'Treino A - Superior',
+            is_rest_day: false,
+            exercises: [
+              {
+                name: 'Flexão de Braço',
+                sets: 3,
+                reps: '10-12'
+              },
+              {
+                name: 'Agachamento',
+                sets: 3,
+                reps: '12-15'
+              }
+            ]
+          }
+        ]
       });
 
       if (newWorkout) {
         Alert.alert('Sucesso', 'Treino criado com sucesso!');
-        loadData(); // Recarregar dados
-      } else {
-        Alert.alert('Erro', 'Não foi possível criar o treino');
+        await loadWorkouts();
       }
     } catch (error) {
       console.error('Erro ao criar treino:', error);
@@ -76,189 +62,473 @@ export const SupabaseUsageExample: React.FC = () => {
     }
   };
 
-  const handleUpdateProfile = async () => {
-    try {
-      const updatedProfile = await profileHelpers.updateProfile({
-        name: 'Nome Atualizado',
-        username: 'novo_username',
-      });
-
-      if (updatedProfile) {
-        Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
-        setProfile(updatedProfile);
-      } else {
-        Alert.alert('Erro', 'Não foi possível atualizar o perfil');
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      Alert.alert('Erro', 'Erro ao atualizar perfil');
-    }
-  };
-
-  const handleCheckUsername = async () => {
-    try {
-      const isAvailable = await profileHelpers.isUsernameAvailable('teste_username');
-      Alert.alert(
-        'Disponibilidade do Username',
-        isAvailable ? 'Username disponível!' : 'Username já está em uso'
-      );
-    } catch (error) {
-      console.error('Erro ao verificar username:', error);
-      Alert.alert('Erro', 'Erro ao verificar username');
-    }
-  };
-
-  const handleGenerateUsername = async () => {
-    try {
-      const uniqueUsername = await profileHelpers.generateUniqueUsername('usuario');
-      Alert.alert('Username Único Gerado', `Username: ${uniqueUsername}`);
-    } catch (error) {
-      console.error('Erro ao gerar username:', error);
-      Alert.alert('Erro', 'Erro ao gerar username');
-    }
-  };
-
-  const handleDeleteWorkout = async (workoutId: string) => {
-    try {
-      const success = await workoutHelpers.deleteWorkout(workoutId);
-      
-      if (success) {
-        Alert.alert('Sucesso', 'Treino deletado com sucesso!');
-        loadData(); // Recarregar dados
-      } else {
-        Alert.alert('Erro', 'Não foi possível deletar o treino');
-      }
-    } catch (error) {
-      console.error('Erro ao deletar treino:', error);
-      Alert.alert('Erro', 'Erro ao deletar treino');
-    }
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Faça login para ver os dados</Text>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Carregando...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1, padding: 20 }}>
       <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
         Exemplo de Uso do Supabase
       </Text>
-
-      {/* Informações do Perfil */}
-      <View style={{ marginBottom: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Perfil:</Text>
-        {profile && (
-          <View style={{ marginTop: 10 }}>
-            <Text>Nome: {profile.name}</Text>
-            <Text>Username: @{profile.username}</Text>
-            <Text>Email: {profile.email}</Text>
-            <Button title="Atualizar Perfil" onPress={handleUpdateProfile} />
-            <Button title="Verificar Username" onPress={handleCheckUsername} />
-            <Button title="Gerar Username Único" onPress={handleGenerateUsername} />
-          </View>
-        )}
-      </View>
-
-      {/* Treinos */}
-      <View style={{ marginBottom: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Treinos ({workouts.length}):</Text>
-        <Button title="Criar Novo Treino" onPress={handleCreateWorkout} />
-        
-        {workouts.map((workout) => (
-          <View key={workout.id} style={{ marginTop: 10, padding: 10, borderWidth: 1, borderColor: '#ccc' }}>
-            <Text style={{ fontWeight: 'bold' }}>{workout.name}</Text>
-            <Text>{workout.description}</Text>
-            <Text style={{ fontSize: 12, color: '#666' }}>
-              Criado em: {new Date(workout.created_at).toLocaleDateString()}
-            </Text>
-            <Button 
-              title="Deletar" 
-              onPress={() => handleDeleteWorkout(workout.id)}
-              color="red"
-            />
-          </View>
-        ))}
-      </View>
-
-      {/* Informações do Usuário */}
-      <View>
-        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Usuário Atual:</Text>
-        <Text>ID: {user?.id}</Text>
-        <Text>Username: @{user?.username}</Text>
-        <Text>Email: {user?.email}</Text>
-        <Text>Nome: {user?.name}</Text>
-      </View>
+      
+      <Button title="Criar Novo Treino" onPress={createWorkout} />
+      
+      {loading ? (
+        <Text>Carregando...</Text>
+      ) : (
+        <View>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>
+            Seus Treinos ({workouts.length}):
+          </Text>
+          {workouts.map((workout) => (
+            <View key={workout.id} style={{ marginTop: 10, padding: 10, backgroundColor: '#f0f0f0' }}>
+              <Text style={{ fontWeight: 'bold' }}>{workout.name}</Text>
+              <Text>{workout.description}</Text>
+              <Text>Emoji: {workout.emoji}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
 
-// Exemplo de hook personalizado para gerenciar treinos
-export const useWorkouts = () => {
-  const [workouts, setWorkouts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Exemplo de uso do Supabase no Fit Planner
+// Este arquivo demonstra como usar as funcionalidades do Supabase
 
-  const loadWorkouts = async () => {
-    setLoading(true);
-    setError(null);
-    
+// Exemplo 1: Usando os helpers diretamente
+export const SupabaseExample = () => {
+  const [userWorkouts, setUserWorkouts] = useState<WorkoutWithDetails[]>([])
+  const [publicWorkouts, setPublicWorkouts] = useState<PublicWorkout[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
     try {
-      const data = await workoutHelpers.getUserWorkouts();
-      setWorkouts(data);
-    } catch (err) {
-      setError('Erro ao carregar treinos');
-      console.error(err);
+      setLoading(true)
+      
+      // Carregar treinos do usuário
+      const workouts = await workoutHelpers.getUserWorkouts()
+      setUserWorkouts(workouts)
+      
+      // Carregar treinos públicos
+      const publicWorkoutsData = await workoutHelpers.getPublicWorkouts()
+      setPublicWorkouts(publicWorkoutsData)
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const createWorkout = async (workoutData: { name: string; description?: string }) => {
+  const createNewWorkout = async () => {
     try {
-      const newWorkout = await workoutHelpers.createWorkout(workoutData);
-      if (newWorkout) {
-        setWorkouts(prev => [newWorkout, ...prev]);
-        return { success: true };
+      const workout = await workoutHelpers.createWorkout({
+        name: 'Meu Novo Treino',
+        description: 'Um treino incrível',
+        emoji: '💪',
+        is_public: false,
+        days: [
+          {
+            day: 'Segunda-feira',
+            division: 'Treino A - Superior',
+            is_rest_day: false,
+            exercises: [
+              {
+                name: 'Flexão de Braço',
+                sets: 3,
+                reps: '10-12'
+              },
+              {
+                name: 'Agachamento',
+                sets: 3,
+                reps: '12-15'
+              }
+            ]
+          }
+        ]
+      })
+      
+      if (workout) {
+        console.log('Treino criado:', workout)
+        await loadData() // Recarregar dados
       }
-      return { success: false, error: 'Erro ao criar treino' };
-    } catch (err) {
-      console.error(err);
-      return { success: false, error: 'Erro ao criar treino' };
+    } catch (error) {
+      console.error('Erro ao criar treino:', error)
     }
-  };
+  }
 
-  const deleteWorkout = async (id: string) => {
+  const addWeightRecord = async (exerciseId: string) => {
     try {
-      const success = await workoutHelpers.deleteWorkout(id);
+      const record = await workoutHelpers.addWeightRecord(
+        exerciseId,
+        50.5, // peso
+        'Ótimo treino!' // notas
+      )
+      
+      if (record) {
+        console.log('Registro de peso adicionado:', record)
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar registro:', error)
+    }
+  }
+
+  const likeWorkout = async (workoutId: string) => {
+    try {
+      const success = await workoutHelpers.likeWorkout(workoutId)
       if (success) {
-        setWorkouts(prev => prev.filter(w => w.id !== id));
-        return { success: true };
+        console.log('Like adicionado!')
+        await loadData() // Recarregar dados
       }
-      return { success: false, error: 'Erro ao deletar treino' };
-    } catch (err) {
-      console.error(err);
-      return { success: false, error: 'Erro ao deletar treino' };
+    } catch (error) {
+      console.error('Erro ao dar like:', error)
     }
-  };
+  }
+
+  const saveWorkout = async (workoutId: string) => {
+    try {
+      const success = await workoutHelpers.saveWorkout(workoutId)
+      if (success) {
+        console.log('Treino salvo!')
+        await loadData() // Recarregar dados
+      }
+    } catch (error) {
+      console.error('Erro ao salvar treino:', error)
+    }
+  }
+
+  return {
+    userWorkouts,
+    publicWorkouts,
+    loading,
+    createNewWorkout,
+    addWeightRecord,
+    likeWorkout,
+    saveWorkout
+  }
+}
+
+// Exemplo 2: Usando o contexto (recomendado)
+export const ContextExample = () => {
+  const {
+    workouts,
+    publicWorkouts,
+    savedWorkouts,
+    loading,
+    addWorkout,
+    updateWorkout,
+    deleteWorkout,
+    saveWorkout,
+    unsaveWorkout,
+    likeWorkout,
+    unlikeWorkout,
+    refreshWorkouts,
+    refreshPublicWorkouts
+  } = useWorkout()
+
+  const createWorkoutWithContext = async () => {
+    try {
+      await addWorkout({
+        name: 'Treino via Contexto',
+        description: 'Criado usando o contexto',
+        emoji: '🔥',
+        days: [
+          {
+            day: 'Segunda-feira',
+            division: 'Treino Full Body',
+            isRestDay: false,
+            exercises: [
+              {
+                id: '1',
+                name: 'Supino',
+                sets: 4,
+                reps: '8-10',
+                weightHistory: []
+              }
+            ]
+          }
+        ],
+        username: 'usuario'
+      })
+      
+      console.log('Treino criado via contexto!')
+    } catch (error) {
+      console.error('Erro ao criar treino:', error)
+    }
+  }
+
+  const handleLikeWorkout = async (workoutId: string) => {
+    try {
+      await likeWorkout(workoutId)
+      console.log('Like adicionado via contexto!')
+    } catch (error) {
+      console.error('Erro ao dar like:', error)
+    }
+  }
+
+  const handleSaveWorkout = async (workoutId: string) => {
+    try {
+      await saveWorkout({ id: workoutId })
+      console.log('Treino salvo via contexto!')
+    } catch (error) {
+      console.error('Erro ao salvar treino:', error)
+    }
+  }
 
   return {
     workouts,
+    publicWorkouts,
+    savedWorkouts,
     loading,
-    error,
-    loadWorkouts,
-    createWorkout,
-    deleteWorkout,
-  };
-}; 
+    createWorkoutWithContext,
+    handleLikeWorkout,
+    handleSaveWorkout,
+    refreshWorkouts,
+    refreshPublicWorkouts
+  }
+}
+
+// Exemplo 3: Gerenciamento de perfil
+export const ProfileExample = () => {
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadProfile()
+  }, [])
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true)
+      const userProfile = await profileHelpers.getCurrentProfile()
+      setProfile(userProfile)
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateUserProfile = async (updates: any) => {
+    try {
+      const updatedProfile = await profileHelpers.updateProfile(updates)
+      if (updatedProfile) {
+        setProfile(updatedProfile)
+        console.log('Perfil atualizado:', updatedProfile)
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error)
+    }
+  }
+
+  const checkUsername = async (username: string) => {
+    try {
+      const isAvailable = await profileHelpers.isUsernameAvailable(username)
+      console.log(`Username "${username}" está disponível:`, isAvailable)
+      return isAvailable
+    } catch (error) {
+      console.error('Erro ao verificar username:', error)
+      return false
+    }
+  }
+
+  const generateUsername = async (baseUsername: string) => {
+    try {
+      const uniqueUsername = await profileHelpers.generateUniqueUsername(baseUsername)
+      console.log('Username único gerado:', uniqueUsername)
+      return uniqueUsername
+    } catch (error) {
+      console.error('Erro ao gerar username:', error)
+      return null
+    }
+  }
+
+  return {
+    profile,
+    loading,
+    updateUserProfile,
+    checkUsername,
+    generateUsername
+  }
+}
+
+// Exemplo 4: Verificações de autenticação
+export const AuthExample = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    try {
+      const authenticated = await generalHelpers.isAuthenticated()
+      setIsAuthenticated(authenticated)
+      
+      if (authenticated) {
+        const user = await generalHelpers.getCurrentUser()
+        setCurrentUser(user)
+      }
+    } catch (error) {
+      console.error('Erro ao verificar autenticação:', error)
+    }
+  }
+
+  return {
+    isAuthenticated,
+    currentUser,
+    checkAuth
+  }
+}
+
+// Exemplo 5: Subscriptions em tempo real
+export const RealtimeExample = () => {
+  useEffect(() => {
+    // Inscrever em mudanças de treinos
+    const workoutSubscription = generalHelpers.subscribeToWorkouts((workout: any) => {
+      console.log('Treino atualizado em tempo real:', workout)
+    })
+
+    // Inscrever em mudanças de perfil
+    const profileSubscription = generalHelpers.subscribeToProfile((profile: any) => {
+      console.log('Perfil atualizado em tempo real:', profile)
+    })
+
+    // Cleanup das subscriptions
+    return () => {
+      workoutSubscription?.unsubscribe()
+      profileSubscription?.unsubscribe()
+    }
+  }, [])
+
+  return null
+}
+
+// Exemplo 6: Componente completo de uso
+export const CompleteExample = () => {
+  const {
+    workouts,
+    publicWorkouts,
+    loading,
+    addWorkout,
+    likeWorkout,
+    saveWorkout
+  } = useWorkout()
+
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    loadProfile()
+  }, [])
+
+  const loadProfile = async () => {
+    const userProfile = await profileHelpers.getCurrentProfile()
+    setProfile(userProfile)
+  }
+
+  const handleCreateWorkout = async () => {
+    try {
+      await addWorkout({
+        name: 'Treino Completo',
+        description: 'Exemplo de treino completo',
+        emoji: '🏋️',
+        days: [
+          {
+            day: 'Segunda-feira',
+            division: 'Treino A',
+            isRestDay: false,
+            exercises: [
+              {
+                id: '1',
+                name: 'Supino Reto',
+                sets: 4,
+                reps: '8-10',
+                weightHistory: []
+              }
+            ]
+          }
+        ],
+        username: profile?.username || 'usuario'
+      })
+    } catch (error) {
+      console.error('Erro:', error)
+    }
+  }
+
+  return {
+    workouts,
+    publicWorkouts,
+    loading,
+    profile,
+    handleCreateWorkout,
+    likeWorkout,
+    saveWorkout
+  }
+}
+
+/*
+COMO USAR:
+
+1. Para usar os helpers diretamente:
+```tsx
+const { userWorkouts, createNewWorkout } = SupabaseExample()
+```
+
+2. Para usar o contexto (recomendado):
+```tsx
+const { workouts, addWorkout } = useWorkout()
+```
+
+3. Para gerenciar perfil:
+```tsx
+const { profile, updateUserProfile } = ProfileExample()
+```
+
+4. Para verificar autenticação:
+```tsx
+const { isAuthenticated, currentUser } = AuthExample()
+```
+
+5. Para subscriptions em tempo real:
+```tsx
+<RealtimeExample />
+```
+
+6. Para um exemplo completo:
+```tsx
+const { workouts, handleCreateWorkout } = CompleteExample()
+```
+
+BENEFÍCIOS DO SUPABASE:
+
+✅ Autenticação completa
+✅ Banco de dados PostgreSQL
+✅ Políticas de segurança (RLS)
+✅ Subscriptions em tempo real
+✅ Storage para arquivos
+✅ Edge Functions
+✅ Analytics integrado
+✅ Backup automático
+✅ Escalabilidade automática
+✅ Interface web para gerenciar dados
+
+ESTRUTURA DO BANCO:
+
+- profiles: Perfis dos usuários
+- workouts: Treinos criados
+- workout_days: Dias de treino
+- exercises: Exercícios
+- weight_records: Registros de peso
+- saved_workouts: Treinos salvos
+- workout_likes: Likes em treinos
+
+TODAS AS OPERAÇÕES SÃO AUTOMATICAMENTE:
+- Autenticadas (apenas usuários logados)
+- Autorizadas (apenas donos podem editar)
+- Sincronizadas em tempo real
+- Backup automático
+- Seguras com RLS
+*/ 
