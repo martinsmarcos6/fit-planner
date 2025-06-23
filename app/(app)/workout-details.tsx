@@ -42,6 +42,8 @@ const WorkoutDetailsPage = () => {
   const workout = savedWorkout || exploreWorkout || localWorkout;
   const isFromSaved = savedWorkout !== undefined;
 
+  console.log(workout);
+
   // Verificar se o treino está salvo
   useEffect(() => {
     if (workout) {
@@ -168,6 +170,8 @@ const WorkoutDetailsPage = () => {
       return getExerciseWeightHistory(id, dayIndex, exercise.id);
     }
   };
+
+  console.log('workout', workout)
 
   const renderExercise = (exercise: any, exerciseIndex: number, dayIndex: number) => {
     const weightHistory = getWeightHistory(exercise, dayIndex);
@@ -325,14 +329,14 @@ const WorkoutDetailsPage = () => {
           
           {(fromExplore === 'true' || isFromSaved) ? (
             // Para treinos da tela de explorar ou salvos, mostrar dias com exercícios e registro de pesos
-            workout.workoutDays.map((day: any, dayIndex: number) => (
+            workout.days.sort((a: any, b: any) => a.order_index - b.order_index).map((day: any, dayIndex: number) => (
               <View 
                 key={dayIndex}
                 className={`rounded-lg border overflow-hidden ${
                   day.isRestDay 
                     ? 'bg-orange-50 border-orange-200' 
                     : 'bg-white border-gray-200'
-                }`}
+                }`} 
               >
                 <Pressable 
                   onPress={() => navigateToDayDetails(dayIndex)}
@@ -404,7 +408,7 @@ const WorkoutDetailsPage = () => {
             ))
           ) : (
             // Para treinos locais, mostrar dias detalhados
-            workout.days.map((day: any, dayIndex: number) => (
+            workout.days.sort((a: any, b: any) => a.order_index - b.order_index).map((day: any, dayIndex: number) => (
               <Pressable 
                 key={dayIndex}
                 onPress={() => navigateToDayDetails(dayIndex)}
@@ -473,7 +477,7 @@ const WorkoutDetailsPage = () => {
           </Text>
           <Text className='text-blue-800 text-sm'>
             {fromExplore === 'true' 
-              ? `Este treino foi criado por @${exploreWorkout.creator} e possui ${exploreWorkout.days} dia${exploreWorkout.days > 1 ? 's' : ''} de treino com ${exploreWorkout.exercises} exercícios no total.`
+              ? `Este treino foi criado por @${exploreWorkout.username} e possui ${exploreWorkout.days.filter((day: any) => !day.isRestDay).length} dia${exploreWorkout.days.filter((day: any) => !day.isRestDay).length > 1 ? 's' : ''} de treino com ${exploreWorkout.days.reduce((total: number, day: any) => total + day.exercises.length, 0)} exercícios no total.`
               : `Este treino possui ${workout.days.filter((day: any) => !day.isRestDay).length} dia${workout.days.filter((day: any) => !day.isRestDay).length !== 1 ? 's' : ''} de treino com um total de ${workout.days.reduce((total: number, day: any) => total + day.exercises.length, 0)} exercícios.`
             }
           </Text>

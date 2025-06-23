@@ -37,22 +37,19 @@ interface Workout {
 interface SavedWorkout {
   id: string
   name: string
-  creator: string
-  duration: string
-  difficulty: string
-  likes: number
-  image: string
   description: string
-  exercises: number
-  days: number
-  workoutDays: DayWorkout[]
-  savedAt: Date
+  emoji: string
+  createdAt: Date
+  username: string
+  likes_count: number
+  days: DayWorkout[]
+  is_liked: boolean
 }
 
 interface WorkoutContextType {
   workouts: Workout[]
   savedWorkouts: SavedWorkout[]
-  publicWorkouts: PublicWorkout[]
+  publicWorkouts: SavedWorkout[]
   loading: boolean
   addWorkout: (workout: Omit<Workout, 'id' | 'createdAt'>) => Promise<void>
   updateWorkout: (id: string, workoutData: Omit<Workout, 'id' | 'createdAt'>) => Promise<void>
@@ -91,7 +88,7 @@ interface WorkoutProviderProps {
 export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) => {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([])
-  const [publicWorkouts, setPublicWorkouts] = useState<PublicWorkout[]>([])
+  const [publicWorkouts, setPublicWorkouts] = useState<SavedWorkout[]>([])
   const [loading, setLoading] = useState(true)
 
   // Converter WorkoutWithDetails para Workout (formato local)
@@ -108,6 +105,7 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
         day: day.day,
         division: day.division,
         isRestDay: day.is_rest_day,
+        order_index: day.order_index,
         exercises: day.exercises.map(exercise => ({
           id: exercise.id,
           name: exercise.name,
@@ -129,16 +127,30 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
     return {
       id: publicWorkout.id,
       name: publicWorkout.name,
-      creator: publicWorkout.profile?.username || 'Usuário',
-      duration: '4 semanas',
-      difficulty: 'Intermediário',
-      likes: publicWorkout.likes_count,
-      image: publicWorkout.emoji,
       description: publicWorkout.description || '',
-      exercises: 0, // Será calculado quando necessário
-      days: 0, // Será calculado quando necessário
-      workoutDays: [], // Será carregado quando necessário
-      savedAt: new Date()
+      emoji: publicWorkout.emoji,
+      createdAt: new Date(publicWorkout.created_at),
+      username: publicWorkout.profile.username || 'Usuário',
+      likes_count: publicWorkout.likes_count,
+      is_liked: publicWorkout.is_liked || false,
+      days: publicWorkout?.workout_days?.map(day => ({
+        day: day.day,
+        division: day.division,
+        isRestDay: day.is_rest_day,
+        order_index: day.order_index,
+        exercises: day?.exercises?.map(exercise => ({
+          id: exercise.id,
+          name: exercise.name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          weightHistory: exercise?.weight_records?.map(record => ({
+            id: record.id,
+            weight: record.weight,
+            date: new Date(record.created_at),
+            notes: record.notes || undefined
+          }))
+        }))
+      }))
     }
   }
 
@@ -160,7 +172,8 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
   const loadPublicWorkouts = async () => {
     try {
       const publicWorkoutsData = await workoutHelpers.getPublicWorkouts()
-      setPublicWorkouts(publicWorkoutsData)
+      const convertedWorkouts = publicWorkoutsData.map(convertPublicWorkout)
+      setPublicWorkouts(convertedWorkouts)
     } catch (error) {
       console.error('Erro ao carregar treinos públicos:', error)
     }
@@ -170,6 +183,7 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
   const loadSavedWorkouts = async () => {
     try {
       const savedWorkoutsData = await workoutHelpers.getSavedWorkouts()
+      console.log('savedWorkoutsData', savedWorkoutsData)
       const convertedSavedWorkouts = savedWorkoutsData.map(convertPublicWorkout)
       setSavedWorkouts(convertedSavedWorkouts)
     } catch (error) {
@@ -190,7 +204,7 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
         name: workoutData.name,
         description: workoutData.description,
         emoji: workoutData.emoji,
-        is_public: false,
+        is_public: true,
         days: workoutData.days.map(day => ({
           day: day.day,
           division: day.division,
@@ -280,9 +294,9 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
 
   const getSavedExerciseWeightHistory = (workoutId: string, dayIndex: number, exerciseId: string): WeightRecord[] => {
     const workout = getSavedWorkout(workoutId)
-    if (!workout || !workout.workoutDays[dayIndex]) return []
+    if (!workout || !workout.days[dayIndex]) return []
     
-    const exercise = workout.workoutDays[dayIndex].exercises.find(ex => ex.id === exerciseId)
+    const exercise = workout.days[dayIndex].exercises.find(ex => ex.id === exerciseId)
     return exercise?.weightHistory || []
   }
 

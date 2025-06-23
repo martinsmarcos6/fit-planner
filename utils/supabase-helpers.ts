@@ -31,6 +31,12 @@ export interface WorkoutWithDetails extends Workout {
 
 export interface PublicWorkout extends Workout {
   profile: Profile
+  emoji: string
+  workout_days: (WorkoutDay & {
+    exercises: (Exercise & {
+      weight_records: WeightRecord[]
+    })[]
+  })[]
   is_liked?: boolean
   is_saved?: boolean
 }
@@ -218,7 +224,16 @@ export const workoutHelpers = {
     // Buscar treinos públicos
     const { data: workouts, error: workoutsError } = await supabase
       .from('workouts')
-      .select('*')
+      .select(`
+        *,
+        workout_days (
+          *,
+          exercises (
+            *,
+            weight_records (*)
+          )
+        )
+      `)
       .eq('is_public', true)
       .order('likes_count', { ascending: false })
       .order('created_at', { ascending: false });
@@ -598,7 +613,16 @@ export const workoutHelpers = {
       .from('saved_workouts')
       .select(`
         workout_id,
-        workouts (*)
+        workouts (
+          *,
+          workout_days (
+            *,
+            exercises (
+              *,
+              weight_records (*)
+            )
+          )
+        )
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });

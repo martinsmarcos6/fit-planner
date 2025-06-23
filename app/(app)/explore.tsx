@@ -41,7 +41,7 @@ const ExplorePage = () => {
     } else {
       const filtered = publicWorkouts.filter(workout =>
         workout.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        workout.profile.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        workout.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (workout.description && workout.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       setFilteredWorkouts(filtered);
@@ -55,7 +55,7 @@ const ExplorePage = () => {
   const handleUserSelect = (user: any) => {
     // Filtrar treinos por usuário
     const userWorkouts = publicWorkouts.filter(workout => 
-      workout.profile.username === user.username
+      workout.username === user.username
     );
     setFilteredWorkouts(userWorkouts);
     setSearchQuery(user.username);
@@ -138,7 +138,7 @@ const ExplorePage = () => {
             <HStack className='items-center gap-1'>
               <Text className='text-typography-500 text-xs'>@</Text>
               <Text className='text-typography-600 text-sm font-medium'>
-                {item.profile.username}
+                {item.username}
               </Text>
             </HStack>
             <HStack className='items-center gap-1'>

@@ -189,7 +189,7 @@ const WorkoutsPage = () => {
                         <Text className='text-lg font-semibold text-typography-900'>
                           {workout.name}
                         </Text>
-                        <Text className='text-2xl'>{workout.image}</Text>
+                        <Text className='text-2xl'>{workout.emoji}</Text>
                       </HStack>
                       {workout.description && (
                         <Text className='text-typography-600 text-sm mb-1'>
@@ -199,19 +199,19 @@ const WorkoutsPage = () => {
                       <HStack className='items-center gap-2 mb-1'>
                         <User size={12} className='text-typography-500' />
                         <Text className='text-typography-600 text-sm'>
-                          @{workout.creator}
+                          @{workout.username}
                         </Text>
                       </HStack>
                       <HStack className='items-center gap-4'>
                         <HStack className='items-center gap-1'>
                           <Heart size={12} className='text-typography-500' />
                           <Text className='text-typography-500 text-xs'>
-                            {workout.likes}
+                            {workout.likes_count}
                           </Text>
                         </HStack>
                       </HStack>
                       <Text className='text-typography-500 text-xs mt-1'>
-                        Salvo em {workout.savedAt.toLocaleDateString('pt-BR')}
+                        Salvo em {workout.createdAt.toLocaleDateString('pt-BR')}
                       </Text>
                     </View>
 
