@@ -8,7 +8,18 @@
     "android": "DARK_MODE=media expo start --android",
     "ios": "DARK_MODE=media expo start --ios",
     "web": "DARK_MODE=media expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:android:preview": "eas build --platform android --profile preview",
+    "build:android:production": "eas build --platform android --profile production",
+    "build:ios:preview": "eas build --platform ios --profile preview",
+    "build:ios:production": "eas build --platform ios --profile production",
+    "build:all:preview": "eas build --platform all --profile preview",
+    "build:all:production": "eas build --platform all --profile production",
+    "submit:android": "eas submit --platform android --profile production",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "submit:all": "eas submit --platform all --profile production",
+    "build:list": "eas build:list",
+    "credentials": "eas credentials"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
