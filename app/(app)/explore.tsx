@@ -1,17 +1,24 @@
 import { HStack } from '@/components/ui/hstack'
 import { Input, InputField, InputIcon } from '@/components/ui/input'
+import { useAuthContext } from '@/contexts/AuthContext'
 import { useWorkout } from '@/contexts/WorkoutContext'
+import { Database, supabase } from '@/utils/supabase'
 import { router } from 'expo-router'
 import { Bookmark, Heart, Search, X } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Text, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
 const ExplorePage = () => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [filteredWorkouts, setFilteredWorkouts] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Profile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const { user } = useAuthContext();
   const { 
     publicWorkouts, 
     saveWorkout, 
@@ -23,16 +30,6 @@ const ExplorePage = () => {
     refreshPublicWorkouts,
     loading 
   } = useWorkout();
-  
-  // Dados mockados para demonstração (usuários)
-  const mockUsers = [
-    { id: 1, username: 'joao_treino', name: 'João Silva', avatar: '👨‍💪', isVerified: true },
-    { id: 2, username: 'maria_fitness', name: 'Maria Santos', avatar: '👩‍🏃‍♀️', isVerified: false },
-    { id: 3, username: 'pedro_yoga', name: 'Pedro Costa', avatar: '🧘‍♂️', isVerified: true },
-    { id: 4, username: 'ana_pilates', name: 'Ana Oliveira', avatar: '🤸‍♀️', isVerified: false },
-    { id: 5, username: 'carlos_crossfit', name: 'Carlos Mendes', avatar: '🏋️‍♂️', isVerified: true },
-    { id: 6, username: 'julia_yoga', name: 'Julia Santos', avatar: '🧘‍♀️', isVerified: false },
-  ];
 
   // Filtrar treinos baseado na busca
   useEffect(() => {
@@ -41,25 +38,86 @@ const ExplorePage = () => {
     } else {
       const filtered = publicWorkouts.filter(workout =>
         workout.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        workout.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        workout.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (workout.description && workout.description.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       setFilteredWorkouts(filtered);
     }
   }, [searchQuery, publicWorkouts]);
 
+  // Buscar usuários no Supabase quando a busca mudar
+  useEffect(() => {
+    if (searchQuery.trim() && isSearchModalOpen) {
+      searchUsers();
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, isSearchModalOpen]);
+
+  const searchUsers = async () => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .limit(10);
+
+      if (error) {
+        console.error('❌ Erro ao buscar usuários:', error);
+        setSearchResults([]);
+      } else {
+        let filteredProfiles = profiles || [];
+        
+        if (searchQuery.trim()) {
+          filteredProfiles = filteredProfiles.filter(profile => 
+            profile.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            profile.name.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+        
+        // Excluir usuário atual
+        if (user?.id) {
+          filteredProfiles = filteredProfiles.filter(profile => profile.id !== user.id);
+        }
+      
+        setSearchResults(filteredProfiles);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao buscar usuários:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleSearch = (text: string) => {
     setSearchQuery(text);
   };
 
-  const handleUserSelect = (user: any) => {
-    // Filtrar treinos por usuário
+  const handleUserSelect = (selectedUser: Profile) => {
+    // Filtrar treinos por usuário usando o username
     const userWorkouts = publicWorkouts.filter(workout => 
-      workout.username === user.username
+      workout.username === selectedUser.username
     );
-    setFilteredWorkouts(userWorkouts);
-    setSearchQuery(user.username);
-    closeSearchModal();
+    
+    if (userWorkouts.length === 0) {
+      // Se não há treinos públicos, mostrar todos os treinos ou uma mensagem
+      setFilteredWorkouts([]);
+      setSearchQuery(selectedUser.username);
+      closeSearchModal();
+      // Opcional: mostrar uma mensagem informativa
+      console.log(`Usuário ${selectedUser.username} não possui treinos públicos`);
+    } else {
+      setFilteredWorkouts(userWorkouts);
+      setSearchQuery(selectedUser.username);
+      closeSearchModal();
+    }
   };
 
   const handleSearchWorkouts = () => {
@@ -73,6 +131,7 @@ const ExplorePage = () => {
 
   const closeSearchModal = () => {
     setIsSearchModalOpen(false);
+    setSearchResults([]);
   };
 
   const navigateToWorkoutDetails = (workout: any) => {
@@ -193,23 +252,47 @@ const ExplorePage = () => {
     </TouchableOpacity>
   );
 
-  const renderUserItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      className='flex-row items-center p-3 border-b border-gray-100'
-      onPress={() => handleUserSelect(item)}
-    >
-      <Text className='text-2xl mr-3'>{item.avatar}</Text>
-      <View className='flex-1'>
-        <HStack className='items-center gap-2'>
-          <Text className='font-medium text-typography-900'>{item.name}</Text>
-          {item.isVerified && (
-            <Text className='text-blue-500 text-xs'>✓</Text>
+  const renderUserItem = ({ item }: { item: Profile }) => {
+    // Verificar se o usuário tem treinos públicos
+    const hasPublicWorkouts = publicWorkouts.some(workout => 
+      workout.username === item.username
+    );
+
+    const handleUserPress = () => {
+      // Navegar para o perfil do usuário
+      router.navigate(`/(app)/user-profile?username=${item.username}`);
+      closeSearchModal();
+    };
+
+    return (
+      <TouchableOpacity
+        className='flex-row items-center p-3 border-b border-gray-100'
+        onPress={handleUserPress}
+      >
+        <View className='w-10 h-10 bg-blue-500 rounded-full items-center justify-center mr-3'>
+          <Text className='text-white font-bold text-lg'>
+            {item.name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View className='flex-1'>
+          <HStack className='items-center gap-2'>
+            <Text className='font-medium text-typography-900'>{item.name}</Text>
+            {hasPublicWorkouts && (
+              <View className='bg-green-100 px-2 py-1 rounded-full'>
+                <Text className='text-green-700 text-xs font-medium'>Treinos Públicos</Text>
+              </View>
+            )}
+          </HStack>
+          <Text className='text-typography-600 text-sm'>@{item.username}</Text>
+          {!hasPublicWorkouts && (
+            <Text className='text-typography-500 text-xs mt-1'>
+              Sem treinos públicos
+            </Text>
           )}
-        </HStack>
-        <Text className='text-typography-600 text-sm'>@{item.username}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderSearchItem = () => (
     <View className='p-4'>
@@ -224,6 +307,49 @@ const ExplorePage = () => {
       </TouchableOpacity>
     </View>
   );
+
+  const renderSearchResults = () => {
+    if (isSearching) {
+      return (
+        <View className='flex-1 justify-center items-center py-10'>
+          <ActivityIndicator size="large" color="#6366f1" />
+          <Text className='text-typography-600 mt-4'>Buscando usuários...</Text>
+        </View>
+      );
+    }
+
+    if (searchQuery.trim().length < 2) {
+      return (
+        <View className='flex-1 justify-center items-center py-10'>
+          <Text className='text-typography-600 text-center'>
+            Digite pelo menos 2 caracteres para buscar usuários
+          </Text>
+        </View>
+      );
+    }
+
+    if (searchResults.length === 0) {
+      return (
+        <View className='flex-1 justify-center items-center py-10'>
+          <Text className='text-typography-600 text-center mb-2'>
+            Nenhum usuário encontrado
+          </Text>
+          <Text className='text-typography-500 text-center text-sm'>
+            Tente ajustar sua busca
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={searchResults}
+        renderItem={renderUserItem}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+      />
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -326,18 +452,8 @@ const ExplorePage = () => {
 
             {/* Search Results */}
             <View style={{ flex: 1, paddingHorizontal: 20 }}>
-              {searchQuery && (
-                <FlatList
-                  data={mockUsers.filter(user => 
-                    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    user.username.toLowerCase().includes(searchQuery.toLowerCase())
-                  )}
-                  renderItem={renderUserItem}
-                  keyExtractor={(item) => item.id.toString()}
-                  ListHeaderComponent={renderSearchItem}
-                  showsVerticalScrollIndicator={false}
-                />
-              )}
+              {renderSearchItem()}
+              {renderSearchResults()}
             </View>
           </View>
         </Modal>

@@ -30,7 +30,7 @@ export const SupabaseUsageExample = () => {
         name: 'Meu Novo Treino',
         description: 'Um treino incrível',
         emoji: '💪',
-        is_public: false,
+        is_public: true,
         days: [
           {
             day: 'Segunda-feira',
@@ -128,7 +128,7 @@ export const SupabaseExample = () => {
         name: 'Meu Novo Treino',
         description: 'Um treino incrível',
         emoji: '💪',
-        is_public: false,
+        is_public: true,
         days: [
           {
             day: 'Segunda-feira',
@@ -250,7 +250,8 @@ export const ContextExample = () => {
             ]
           }
         ],
-        username: 'usuario'
+        username: 'usuario',
+        likes_count: 0
       })
       
       console.log('Treino criado via contexto!')
@@ -451,7 +452,8 @@ export const CompleteExample = () => {
             ]
           }
         ],
-        username: profile?.username || 'usuario'
+        username: profile?.username || 'usuario',
+        likes_count: 0
       })
     } catch (error) {
       console.error('Erro:', error)

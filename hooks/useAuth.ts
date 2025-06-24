@@ -1,4 +1,5 @@
 import { supabase } from '@/utils/supabase';
+import { profileHelpers } from '@/utils/supabase-helpers';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -34,6 +35,30 @@ export const useAuth = () => {
     name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Usuário',
   });
 
+  // Sincronizar perfil com a tabela profiles
+  const syncProfileWithDatabase = async (supabaseUser: SupabaseUser) => {
+    try {
+      // Garantir que o perfil existe na tabela profiles
+      const profile = await profileHelpers.ensureProfileExists();
+      
+      if (profile) {
+        // Usar dados do perfil do banco se disponível
+        return {
+          id: profile.id,
+          email: profile.email,
+          username: profile.username,
+          name: profile.name,
+        };
+      }
+      
+      // Fallback para dados do auth
+      return mapSupabaseUser(supabaseUser);
+    } catch (error) {
+      console.error('Erro ao sincronizar perfil:', error);
+      return mapSupabaseUser(supabaseUser);
+    }
+  };
+
   // Carregar dados de autenticação do Supabase na inicialização
   useEffect(() => {
     loadAuthFromSupabase();
@@ -44,7 +69,7 @@ export const useAuth = () => {
         console.log('Auth state changed:', event, session?.user?.email);
         
         if (session?.user) {
-          const user = mapSupabaseUser(session.user);
+          const user = await syncProfileWithDatabase(session.user);
           setAuthState({
             user,
             token: session.access_token,
@@ -76,7 +101,7 @@ export const useAuth = () => {
       }
 
       if (session?.user) {
-        const user = mapSupabaseUser(session.user);
+        const user = await syncProfileWithDatabase(session.user);
         setAuthState({
           user,
           token: session.access_token,
@@ -108,7 +133,7 @@ export const useAuth = () => {
       }
 
       if (data.user) {
-        const user = mapSupabaseUser(data.user);
+        const user = await syncProfileWithDatabase(data.user);
         setAuthState({
           user,
           token: data.session?.access_token || null,
@@ -130,6 +155,15 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
 
+      // Verificar se o username está disponível
+      if (username) {
+        const isAvailable = await profileHelpers.isUsernameAvailable(username);
+        if (!isAvailable) {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+          return { success: false, error: 'Nome de usuário já está em uso' };
+        }
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -148,7 +182,9 @@ export const useAuth = () => {
       }
 
       if (data.user) {
-        const user = mapSupabaseUser(data.user);
+        // Aguardar um pouco para o trigger criar o perfil
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const user = await syncProfileWithDatabase(data.user);
         setAuthState({
           user,
           token: data.session?.access_token || null,
@@ -194,7 +230,16 @@ export const useAuth = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      const { data, error } = await supabase.auth.updateUser({
+      // Verificar se o username está disponível (se foi alterado)
+      if (userData.username && userData.username !== authState.user.username) {
+        const isAvailable = await profileHelpers.isUsernameAvailable(userData.username);
+        if (!isAvailable) {
+          throw new Error('Nome de usuário já está em uso');
+        }
+      }
+
+      // Atualizar dados no auth
+      const { data: authData, error: authError } = await supabase.auth.updateUser({
         email: userData.email,
         data: {
           name: userData.name,
@@ -202,15 +247,32 @@ export const useAuth = () => {
         },
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (authError) {
+        throw new Error(authError.message);
       }
 
-      if (data.user) {
-        const updatedUser = mapSupabaseUser(data.user);
+      // Atualizar perfil na tabela profiles
+      const updatedProfile = await profileHelpers.updateProfile({
+        name: userData.name,
+        email: userData.email,
+        username: userData.username,
+      });
+
+      if (updatedProfile) {
         setAuthState(prev => ({
           ...prev,
-          user: updatedUser,
+          user: {
+            id: updatedProfile.id,
+            email: updatedProfile.email,
+            username: updatedProfile.username,
+            name: updatedProfile.name,
+          },
+        }));
+      } else if (authData.user) {
+        const user = await syncProfileWithDatabase(authData.user);
+        setAuthState(prev => ({
+          ...prev,
+          user,
         }));
       }
 

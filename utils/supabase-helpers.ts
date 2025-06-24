@@ -164,6 +164,155 @@ export const profileHelpers = {
     return data;
   },
 
+  // Buscar perfil por ID
+  async getProfileById(id: string): Promise<Profile | null> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar perfil por ID:', error);
+      return null;
+    }
+
+    return data;
+  },
+
+  // Buscar perfis públicos (usuários que têm treinos públicos)
+  async getPublicProfiles(limit: number = 20, offset: number = 0): Promise<Profile[]> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        workouts!inner(is_public)
+      `)
+      .eq('workouts.is_public', true)
+      .limit(limit)
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Erro ao buscar perfis públicos:', error);
+      return [];
+    }
+
+    // Remover duplicatas baseado no ID do perfil
+    const uniqueProfiles = data?.reduce((acc: Profile[], current: any) => {
+      const x = acc.find((item: Profile) => item.id === current.id);
+      if (!x) {
+        return acc.concat([current]);
+      } else {
+        return acc;
+      }
+    }, [] as Profile[]);
+
+    return uniqueProfiles || [];
+  },
+
+  // Buscar estatísticas do perfil
+  async getProfileStats(profileId: string): Promise<{
+    totalWorkouts: number;
+    publicWorkouts: number;
+    totalLikes: number;
+    totalSaved: number;
+  } | null> {
+    try {
+      // Contar treinos totais
+      const { count: totalWorkouts, error: workoutsError } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profileId);
+
+      if (workoutsError) throw workoutsError;
+
+      // Contar treinos públicos
+      const { count: publicWorkouts, error: publicError } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profileId)
+        .eq('is_public', true);
+
+      if (publicError) throw publicError;
+
+      // Buscar IDs dos treinos do usuário
+      const { data: userWorkouts, error: userWorkoutsError } = await supabase
+        .from('workouts')
+        .select('id')
+        .eq('user_id', profileId);
+
+      if (userWorkoutsError) throw userWorkoutsError;
+
+      const workoutIds = userWorkouts?.map(w => w.id) || [];
+
+      // Contar likes recebidos
+      const { count: totalLikes, error: likesError } = await supabase
+        .from('workout_likes')
+        .select('*', { count: 'exact', head: true })
+        .in('workout_id', workoutIds);
+
+      if (likesError) throw likesError;
+
+      // Contar salvamentos recebidos
+      const { count: totalSaved, error: savedError } = await supabase
+        .from('saved_workouts')
+        .select('*', { count: 'exact', head: true })
+        .in('workout_id', workoutIds);
+
+      if (savedError) throw savedError;
+
+      return {
+        totalWorkouts: totalWorkouts || 0,
+        publicWorkouts: publicWorkouts || 0,
+        totalLikes: totalLikes || 0,
+        totalSaved: totalSaved || 0,
+      };
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas do perfil:', error);
+      return null;
+    }
+  },
+
+  // Buscar perfis sugeridos (baseado em treinos similares)
+  async getSuggestedProfiles(limit: number = 10): Promise<Profile[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    try {
+      // Buscar usuários que têm treinos públicos e que o usuário atual ainda não salvou
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          workouts!inner(
+            id,
+            is_public,
+            saved_workouts!left(user_id)
+          )
+        `)
+        .eq('workouts.is_public', true)
+        .neq('id', user.id)
+        .limit(limit);
+
+      if (error) throw error;
+
+      // Filtrar e remover duplicatas
+      const uniqueProfiles = data?.reduce((acc: Profile[], current: any) => {
+        const x = acc.find((item: Profile) => item.id === current.id);
+        if (!x) {
+          return acc.concat([current]);
+        } else {
+          return acc;
+        }
+      }, [] as Profile[]);
+
+      return uniqueProfiles || [];
+    } catch (error) {
+      console.error('Erro ao buscar perfis sugeridos:', error);
+      return [];
+    }
+  },
+
   // Gerar username único baseado em um username base
   async generateUniqueUsername(baseUsername: string): Promise<string> {
     let username = baseUsername;
@@ -175,6 +324,36 @@ export const profileHelpers = {
     }
 
     return username;
+  },
+
+  // Validar username (regras de validação)
+  validateUsername(username: string): { isValid: boolean; error?: string } {
+    if (!username || username.length < 3) {
+      return { isValid: false, error: 'Nome de usuário deve ter pelo menos 3 caracteres' };
+    }
+
+    if (username.length > 20) {
+      return { isValid: false, error: 'Nome de usuário deve ter no máximo 20 caracteres' };
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return { isValid: false, error: 'Nome de usuário deve conter apenas letras, números e underscore' };
+    }
+
+    return { isValid: true };
+  },
+
+  // Validar nome
+  validateName(name: string): { isValid: boolean; error?: string } {
+    if (!name || name.trim().length < 2) {
+      return { isValid: false, error: 'Nome deve ter pelo menos 2 caracteres' };
+    }
+
+    if (name.trim().length > 50) {
+      return { isValid: false, error: 'Nome deve ter no máximo 50 caracteres' };
+    }
+
+    return { isValid: true };
   },
 };
 
