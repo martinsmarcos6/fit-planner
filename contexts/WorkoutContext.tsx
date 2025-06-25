@@ -159,6 +159,7 @@ export const WorkoutProvider: React.FC<WorkoutProviderProps> = ({ children }) =>
     try {
       setLoading(true)
       const workoutDetails = await workoutHelpers.getUserWorkouts()
+      console.log('workoutDetails', workoutDetails)
       const convertedWorkouts = workoutDetails.map(convertWorkoutWithDetails)
       setWorkouts(convertedWorkouts)
     } catch (error) {

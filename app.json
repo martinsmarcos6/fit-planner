@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.fitplanner",
+      "bundleIdentifier": "com.yeecorp.fitplanner",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Este app precisa acessar a câmera para fotos de perfil",
@@ -28,7 +28,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yourcompany.fitplanner",
+      "package": "com.yeecorp.fitplanner",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
@@ -59,8 +59,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "SEU_PROJECT_ID_AQUI"
-      }
-    }
+        "projectId": "28a5f060-723a-4f57-9d62-0bb2d4755b61"
+      },
+      "router": {}
+    },
+    "owner": "marcosvmartins"
   }
 }
